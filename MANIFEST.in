@@ -1,0 +1,6 @@
+include edges/data/*.txt
+include edges/data/*.csv
+include edges/data/*.json
+include edges/data/*.yml
+include edges/data/*.yaml
+
