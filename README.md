@@ -5,14 +5,15 @@
 ``edges`` is a Python Library for Contextual Impact Assessment in 
 Life Cycle Analysis (LCA) for the ``brightway2`` LCA framework.
 
-The ``edges`` Python library introduces an innovative approach to the application 
+The *edges* Python library introduces an innovative approach to the application 
 of characterization factors during the impact assessment phase of Life Cycle 
 Assessment (LCA). Unlike traditional impact assessment methods that apply 
-characterization factors to `nodes` (e.g., `nodes` like carbon dioxide in the 
+characterization factors to *nodes* (e.g., *nodes* like `Carbon dioxide, fossil` in the 
 ``brightway2`` ecosystem, which is assigned a Global Warming Potential (GWP) 
-factor of 1), ``edges`` applies these factors directly to `edges` between `nodes`.
+factor of 1), ``edges`` applies these factors directly to *edges* between *nodes*.
+To do this, ``edges`` injects off-diagonal values in the *characterization matrix*.
 
-Edges represent the relationships or exchanges between nodes, allowing edges 
+*Edges* represent the relationships or exchanges between *nodes*, allowing *edges* 
 to leverage contextual information such as the attributes of both suppliers 
 and consumers. This approach enables a more nuanced and flexible characterization 
 of impacts, incorporating additional parameters such as the geographic location 
