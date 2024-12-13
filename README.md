@@ -11,9 +11,10 @@ Assessment (LCA). Unlike traditional impact assessment methods that apply
 characterization factors to *nodes* (e.g., *nodes* like `Carbon dioxide, fossil` in the 
 ``brightway2`` ecosystem, which is assigned a Global Warming Potential (GWP) 
 factor of 1), ``edges`` applies these factors directly to *edges* between *nodes*.
-To do this, ``edges`` injects off-diagonal values in the *characterization matrix*.
+To do this, ``edges`` injects off-diagonal values in the *characterization matrix*, of
+which the value is determined by the context of the edge.
 
-*Edges* represent the relationships or exchanges between *nodes*, allowing *edges* 
+*Edges* represent the relationships or exchanges between *nodes*, allowing ``edges`` 
 to leverage contextual information such as the attributes of both suppliers 
 and consumers. This approach enables a more nuanced and flexible characterization 
 of impacts, incorporating additional parameters such as the geographic location 
@@ -53,10 +54,9 @@ print(methods)
 
 ### Perform edge-based LCIA with ``edges``
 
-
 ```python
 import bw2data
-from edges import RegionalLCA
+from edges import SpatialLCA
 
 # Select an activity from the LCA database
 act = bw2data.Database("ecoinvent-3.10-cutoff").random()
@@ -65,7 +65,7 @@ act = bw2data.Database("ecoinvent-3.10-cutoff").random()
 method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
 
 # Initialize the LCA object
-LCA = RegionalLCA({act: 1}, method)
+LCA = SpatialLCA({act: 1}, method)
 LCA.lci()
 # Perform the LCAI calculation
 LCA.lcia()
