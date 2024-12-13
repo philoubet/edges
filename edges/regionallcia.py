@@ -10,14 +10,13 @@ import yaml
 import numpy as np
 from bw2calc import LCA
 import bw2data
-from scipy.sparse import lil_matrix
+from scipy.sparse import lil_matrix, coo_matrix
 from collections import defaultdict
 from constructive_geometries import Geomatcher
 import logging
 import pandas as pd
 
 from .filesystem_constants import DATA_DIR
-from .utils import prepare_lca_inputs
 
 from pathlib import Path
 from typing import Iterable, Optional, Union
@@ -75,12 +74,14 @@ def format_data(data: dict) -> dict:
     :param data: The data for the LCIA method.
     :return: The formatted data for the LCIA method.
     """
-    reformatted_data = {}
-    for k, v in data.items():
-        for cf in v:
-            cf["categories"] = tuple(cf["categories"])
-        reformatted_data[k] = {"flows": v}
-    return add_population_and_gdp_data(reformatted_data)
+
+    for cf in data:
+        for category in ["supplier", "consumer"]:
+            for field, value in cf.get(category, {}).items():
+                if field == "categories":
+                    cf[category][field] = tuple(value)
+
+    return add_population_and_gdp_data(data)
 
 def add_population_and_gdp_data(data: dict) -> dict:
     """
@@ -89,77 +90,58 @@ def add_population_and_gdp_data(data: dict) -> dict:
     :return: The data for the LCIA method with population and GDP data.
     """
     # load population data from data/population.yaml
-    with open(DATA_DIR / "population.yaml", "r") as f:
+    with open(DATA_DIR / "metadata" / "population.yaml", "r") as f:
         population_data = yaml.safe_load(f)
 
     # load GDP data from data/gdp.yaml
-    with open(DATA_DIR / "gdp.yaml", "r") as f:
+    with open(DATA_DIR / "metadata" / "gdp.yaml", "r") as f:
         gdp_data = yaml.safe_load(f)
 
     # add to the data dictionary
-    for k, v in data.items():
-        if k in population_data:
-            v["population"] = population_data[k]
-
-        if k in gdp_data:
-            v["gdp"] = gdp_data[k]
+    for cf in data:
+        for category in ["supplier", "consumer"]:
+            if "location" in cf[category]:
+                k = cf[category]["location"]
+                cf[category]["population"] = population_data.get(k, 0)
+                cf[category]["gdp"] = gdp_data.get(k, 0)
 
     return data
 
-def initialize_lcia_matrix(lca: LCA) -> lil_matrix:
+def initialize_lcia_matrix(lca: LCA, type="biosphere") -> lil_matrix:
     """
     Initialize the LCIA matrix. It is a sparse matrix with the
     dimensions of the `inventory` matrix of the LCA object.
     :param lca: The LCA object.
     :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
     """
-    return lil_matrix(lca.inventory.shape)
+    if type=="biosphere":
+        return lil_matrix(lca.inventory.shape)
+    else:
+        return lil_matrix(lca.technosphere_matrix.shape)
 
-def get_location_matrix_positions(lca: LCA) -> tuple:
+
+def get_flow_matrix_positions(mapping: dict) -> list:
     """
-    Get the positions of the country-specific LCIA method in the
-    inventory matrix of the LCA object.
-    :param lca: The LCA object.
-    :return: A tuple with the positions of the country-specific LCIA method.
+    Retrieve information about the flows in the given matrix.
+    :param mapping: The mapping of the flows.
+    :return: A list with the positions of the flows.
     """
-    idx_to_act_map = {}
-    act_to_locations = defaultdict(list)
-
-    for k, v in lca.dicts.activity.items():
-        act = bw2data.get_activity(id=k)
-        idx_to_act_map[v] = {
-            "location": act["location"],
-            "name": act["name"],
-            "reference product": act.get("reference product")
-        }
-        act_to_locations[(
-            act["name"],
-            act.get("reference product"),
-        )].append(act["location"])
-
-    # create a dictionary with the unique locations
-    # as the key and a list of indices as the value
-    locations_to_idx = defaultdict(list)
-    for k, v in idx_to_act_map.items():
-        if k:
-            locations_to_idx[v["location"]].append(k)
-
-    return locations_to_idx, idx_to_act_map, act_to_locations
-
-
-def get_flow_matrix_positions(lca: LCA) -> tuple:
-    """
-    Get the positions of the flow-specific LCIA method in the
-    inventory matrix of the LCA object.
-    :param lca: The LCA object.
-    :return: A tuple with the positions of the flow-specific LCIA method.
-    """
-    flow_indices, reversed_flow_indices = {}, {}
-    for k, v in lca.dicts.biosphere.items():
-        flow = bw2data.get_activity(id=k)
-        flow_indices[(flow["name"], flow["categories"])] = v
-        reversed_flow_indices[v] = (flow["name"], flow["categories"])
-    return flow_indices, reversed_flow_indices
+    flows = []
+    for k, v in mapping.items():
+        flow = bw2data.get_activity(k)
+        flows.append(
+            {
+                "name": flow["name"],
+                "reference product": flow.get("reference product"),
+                "categories": flow.get("categories"),
+                "unit": flow.get("unit"),
+                "location": flow.get("location"),
+                "classifications": flow.get("classifications"),
+                "type": flow.get("type"),
+                "position": v
+            }
+        )
+    return flows
 
 def resolve_dynamic_regions(
         idx: int,
@@ -200,6 +182,7 @@ def resolve_dynamic_regions(
 
 def compute_average_cf(
         constituents: list,
+        supplier_info: dict,
         weight: dict,
         cfs: dict,
         region: str,
@@ -216,42 +199,43 @@ def compute_average_cf(
     """
 
     # get the weight of the constituents
-    weight_array = [weight.get(c, 0) for c in constituents]
+    constituents = [c for c in constituents if weight.get(c)]
+    weight_array = [weight[c] for c in constituents]
+    weight_array = [w for w in weight_array if w]
 
     # if the sum of the weight is zero, return an empty dictionary
     if sum(weight_array) == 0:
-        logger.info(f"Region: {region}. "
-                    f"No {weighting} data found when summing {constituents}.")
-        return {}, []
+        logger.info(
+            f"Region: {region}. "
+            f"No {weighting} data found when summing {constituents}."
+        )
+        return 0
 
     # normalize the weight
     shares = [p / sum(weight_array) for p in weight_array]
     if not np.isclose(sum(shares), 1):
         logger.info(f"Shares for {region} do not sum to 1 but {sum(shares)}: {shares}")
 
-    new_cfs = {}
-    for s, share in enumerate(shares):
-        constituent = constituents[s]
+    mix = dict(zip(constituents, shares))
 
-        for cf in cfs[constituent]["flows"]:
-            flow = (cf["name"], cf["categories"])
-            if flow in new_cfs:
-                new_cfs[flow]["value"] += cf["value"] * share
-            else:
-                new_cfs[flow] = {
-                    "name": cf["name"],
-                    "categories": cf["categories"],
-                    "value": cf["value"] * share
-                }
+    value = 0
+    for loc, share in mix.items():
+        for cf in cfs:
+            if all(
+                    cf["supplier"].get(k) == supplier_info.get(k)
+                    for k in supplier_info
+            ) and cf["consumer"].get("location") == loc:
+                value += share * cf["value"]
 
-    return new_cfs, weight_array
+    return value
 
 
 def find_region_constituents(
-        regions: set,
+        region: str,
+        supplier_info: dict,
         cfs: dict,
         weighting="population"
-) -> dict:
+) -> float:
     """
     Find the constituents of the region.
     :param regions: The regions.
@@ -260,29 +244,32 @@ def find_region_constituents(
     :return: The new characterization factors for the region
     """
 
-    weight = {k: v[weighting] for k, v in cfs.items()}
+    weight = {cf["consumer"].get("location"): cf["consumer"].get(weighting, 0) for cf in cfs}
 
     logger.info(f"Weighting: {weighting}")
 
-    for region in regions:
-        _ = lambda x: x if isinstance(x, str) else x[-1]
+    _ = lambda x: x if isinstance(x, str) else x[-1]
 
-        if region in ["RoW", "RoE"]:
-            continue
-        try:
-            constituents = [_(g) for g in geo.contained(region) if _(g) in weight]
-        except KeyError:
-            logger.info(f"Region: {region}. No geometry found.")
-            continue
+    try:
+        constituents = [_(g) for g in geo.contained(region) if _(g) in weight]
+    except KeyError:
+        logger.info(f"Region: {region}. No geometry found.")
+        return 0
 
-        new_cfs, weight_array = compute_average_cf(constituents, weight, cfs, region, weighting)
+    new_cfs = compute_average_cf(constituents, supplier_info, weight, cfs, region, weighting)
 
-        if new_cfs:
-            cfs[region] = {
-                "flows": list(new_cfs.values()),
-                weighting: sum(weight_array)
-            }
-    return cfs
+    return new_cfs
+
+def preprocess_flows(flows_list, mandatory_fields):
+    """
+    Preprocess flows into a lookup dictionary.
+    """
+    lookup = {}
+    for flow in flows_list:
+        # Create a hashable key excluding ignored fields
+        key = tuple((k, v) for k, v in flow.items() if k in mandatory_fields and v is not None)
+        lookup.setdefault(key, []).append(flow["position"])
+    return lookup
 
 class RegionalLCA(LCA):
     """
@@ -311,15 +298,16 @@ class RegionalLCA(LCA):
         Initialize the RegionalLCA class, ensuring `method` is not passed to
         `prepare_lca_inputs` while still being available in the class.
         """
-        self.reversed_flow_indices = None
-        self.act_to_locations = None
-        self.idx_to_act_map = None
+
+        self.cfs_data = None
+        self.flows = None
+        self.biosphere_edges = None
+        self.technosphere_flows = None
+        self.biosphere_flows = None
         self.characterized_inventory = None
-        self.characterization_matrix = None
+        self.biosphere_characterization_matrix = None
         self.ignored_flows = set()
         self.ignored_locations = set()
-        self.flow_indices = None
-        self.location_indices = None
         self.method = method  # Store the method argument in the instance
         self.weight = lcia_weight
 
@@ -358,6 +346,36 @@ class RegionalLCA(LCA):
             self.decompose_technosphere()
         self.lci_calculation()
 
+        self.biosphere_flows = get_flow_matrix_positions(self.biosphere_dict)
+        self.technosphere_flows = get_flow_matrix_positions(self.product_dict)
+        self.flows = self.biosphere_flows + self.technosphere_flows
+
+        self.technosphere_edges = set(list(zip(*self.build_technosphere_edges_matrix().nonzero())))
+        self.biosphere_edges = set(list(zip(*self.inventory.nonzero())))
+
+        self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
+
+
+    def build_technosphere_edges_matrix(self):
+        """
+        Generate a matrix with the technosphere flows.
+        """
+
+        # Convert CSR to COO format for easier manipulation
+        coo = self.technosphere_matrix.tocoo()
+
+        # Extract negative values
+        rows, cols, data = coo.row, coo.col, coo.data
+        negative_data = -data * (data < 0)  # Keep only negatives and make them positive
+
+        # Scale columns by supply_array
+        scaled_data = negative_data * self.supply_array[cols]
+
+        # Create the flow matrix in sparse format
+        flow_matrix_sparse = coo_matrix((scaled_data, (rows, cols)), shape=self.technosphere_matrix.shape)
+
+        return flow_matrix_sparse
+
     def load_lcia_data(self, data_objs=None):
         """
         Load the data for the LCIA method.
@@ -368,99 +386,203 @@ class RegionalLCA(LCA):
             raise FileNotFoundError(f"Data file not found: {data_file}")
 
         with open(data_file, "r") as f:
-            cfs_data = format_data(json.load(f))
+            self.cfs_data = format_data(json.load(f))
 
-        self.fill_in_lcia_matrix(cfs_data)
+        self.fill_in_lcia_matrix()
 
-    def fill_in_lcia_matrix(self, cfs_data):
+    def identify_exchanges(self):
+        """
+        Based on search criteria under `supplier` and `consumer` keys,
+        identify the exchanges in the inventory matrix.
+        """
+
+        IGNORED_FIELDS = [
+            "matrix",
+            "population",
+            "gdp"
+        ]
+
+        required_supplier_fields = set([
+            k for cf in self.cfs_data
+            for k in cf["supplier"].keys()
+            if k not in IGNORED_FIELDS
+        ])
+
+        required_consumer_fields = set([
+            k for cf in self.cfs_data
+            for k in cf["consumer"].keys()
+            if k not in IGNORED_FIELDS
+        ])
+
+        # Preprocess flows for faster lookups
+        if all([c["supplier"].get("matrix") == "biosphere" for c in self.cfs_data]):
+            supplier_lookup = preprocess_flows(self.biosphere_flows, required_supplier_fields)
+        else:
+            supplier_lookup = preprocess_flows(self.technosphere_flows, required_supplier_fields)
+        reversed_supplier_lookup = {x: k for k, v in supplier_lookup.items() for x in v if all(k)}
+
+        consumer_lookup = preprocess_flows(self.technosphere_flows, required_consumer_fields)
+        reversed_consumer_lookup = {x: k for k, v in consumer_lookup.items() for x in v if all(k)}
+
+        for cf in self.cfs_data:
+            # Generate supplier candidates
+            supplier_key = tuple((k, v) for k, v in cf["supplier"].items() if k not in IGNORED_FIELDS)
+            supplier_candidates = supplier_lookup.get(supplier_key, [])
+
+            # Generate consumer candidates
+            consumer_key = tuple((k, v) for k, v in cf["consumer"].items() if k not in IGNORED_FIELDS)
+            consumer_candidates = consumer_lookup.get(consumer_key, [])
+
+            # Create pairs of supplier and consumer candidates
+            cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
+                (supplier, consumer)
+                for supplier in supplier_candidates
+                for consumer in consumer_candidates
+                if (supplier, consumer) in self.biosphere_edges
+            ]
+
+        processed_bio_tech_edges = set(
+            [
+                (c[0], c[1])
+                for cf in self.cfs_data
+                for c in cf.get("biosphere-technosphere", [])
+             ]
+        )
+
+        processed_tech_tech_edges = set(
+            [
+                (c[0], c[1])
+                for cf in self.cfs_data
+                for c in cf.get("technosphere-technosphere", [])
+             ]
+        )
+
+        # make two sets out of the first and second item in the tuple
+        supplier_bio_tech_edges, consumer_bio_tech_edges = set([f[0] for f in processed_bio_tech_edges]), set([f[1] for f in processed_bio_tech_edges])
+        supplier_tech_tech_edges, consumer_tech_tech_edges = set([f[0] for f in processed_tech_tech_edges]), set([f[1] for f in processed_tech_tech_edges])
+
+        unprocessed_biosphere_edges = [
+            (biosphere, technosphere)
+            for biosphere, technosphere in self.biosphere_edges
+            if biosphere in supplier_bio_tech_edges
+            and technosphere not in consumer_bio_tech_edges
+        ]
+
+        unprocessed_technosphere_edges = [
+            (biosphere, technosphere)
+            for biosphere, technosphere in self.technosphere_edges
+            if biosphere in supplier_tech_tech_edges
+            and technosphere not in consumer_tech_tech_edges
+        ]
+
+
+        for direction, unprocessed_edges in {
+            "biosphere-technosphere": unprocessed_biosphere_edges,
+            "technosphere-technosphere": unprocessed_technosphere_edges
+        }.items():
+            unprocessed_locations_cache = {}
+            for unprocessed_coordinate in unprocessed_edges:
+                supplier_idx, consumer_idx = unprocessed_coordinate
+                supplier_info = dict(reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(reversed_consumer_lookup[consumer_idx])
+
+                if consumer_info.get("location") not in ("RoW", "RoE"):
+                    new_cf = None
+
+                    if consumer_info.get("location") in unprocessed_locations_cache:
+                        if supplier_idx in unprocessed_locations_cache[consumer_info.get("location")]:
+                            new_cf = unprocessed_locations_cache[consumer_info.get("location")][supplier_idx]
+
+                    if not new_cf:
+                        new_cf = find_region_constituents(consumer_info.get("location"), supplier_info, self.cfs_data, weighting="population")
+
+                    if new_cf:
+                        if consumer_info.get("location") not in unprocessed_locations_cache:
+                            unprocessed_locations_cache[consumer_info.get("location")] = {supplier_idx: new_cf}
+                        else:
+                            unprocessed_locations_cache[consumer_info.get("location")][supplier_idx] = new_cf
+
+                        self.cfs_data.append(
+                            {
+                                "supplier": supplier_info,
+                                "consumer": consumer_info,
+                                direction: [(supplier_idx, consumer_idx)],
+                                "value": new_cf
+                            }
+                        )
+                else:
+                    # get all the possible locations of the consumer
+                    consumer_act = bw2data.get_activity(self.reversed_activity[consumer_idx])
+                    name, reference_product = consumer_act["name"], consumer_act.get("reference product")
+
+                    constituents = [
+                        c["location"] for c in self.technosphere_flows
+                        if c["name"] == name and c.get("reference product") == reference_product
+                        and c["location"] not in ["RoW", "RoE"]
+                    ]
+
+                    extra_constituents = []
+                    _ = lambda x: x if isinstance(x, str) else x[-1]
+                    for constituent in constituents:
+                        if len(constituent) > 2:
+                            extra_constituents.extend(
+                                [_(g) for g in geo.contained(constituent)]
+                            )
+                    constituents = list(set(constituents + extra_constituents))
+
+                    # get the weighting
+                    weight = {cf["consumer"].get("location"): cf["consumer"].get(self.weight, 0) for cf in self.cfs_data}
+
+                    new_cf = compute_average_cf(constituents, supplier_info, weight, self.cfs_data, consumer_info["location"], self.weight)
+
+                    if new_cf:
+                        self.cfs_data.append(
+                            {
+                                "supplier": supplier_info,
+                                "consumer": consumer_info,
+                                direction: [(supplier_idx, consumer_idx)],
+                                "value": new_cf
+                            }
+                        )
+                    else:
+                        self.ignored_locations.add(consumer_info.get("location"))
+
+        cfs_data = [
+            cf for cf in self.cfs_data
+            if any([cf.get("biosphere-technosphere"), cf.get("technosphere-technosphere")])
+        ]
+
+        return cfs_data
+
+    def fill_in_lcia_matrix(self):
         """
         Translate the data to indices in the inventory matrix.
         """
 
-        self.characterization_matrix = initialize_lcia_matrix(self)
+        self.biosphere_characterization_matrix = initialize_lcia_matrix(self)
+        self.technosphere_characterization_matrix = initialize_lcia_matrix(self)
 
-        processed_locations = set()
+        self.identify_exchanges()
 
-        missing_locations = set([
-            loc for loc in self.location_indices.keys()
-            if loc not in cfs_data
-        ])
+        for cf in self.cfs_data:
+            for supplier, consumer in cf.get("biosphere-technosphere", []):
+                self.biosphere_characterization_matrix[supplier, consumer] = cf["value"]
 
-        cfs_data = find_region_constituents(
-            regions=missing_locations,
-            cfs=cfs_data,
-            weighting=self.weight
-        )
+            for supplier, consumer in cf.get("technosphere-technosphere", []):
+                self.technosphere_characterization_matrix[supplier, consumer] = cf["value"]
 
-        for loc, rows in self.location_indices.items():
-
-            if loc not in cfs_data:
-                continue
-
-            for cf in cfs_data[loc]["flows"]:
-                if (cf["name"], cf["categories"]) not in self.flow_indices:
-                    self.ignored_flows.add((cf["name"], cf["categories"]))
-                    continue
-                flow_index = self.flow_indices[(cf["name"], cf["categories"])]
-                val = cf["value"]
-
-                # create mask from self.biosphere_matrix, to only write
-                # where the flow is present
-                mask = self.biosphere_matrix[flow_index, rows].astype(bool)
-
-                # write the value to the characterization matrix, where the mask is True
-                if mask.sum() > 0:
-                    self.characterization_matrix[flow_index, rows] = val * mask
-                    processed_locations.add(loc)
-
-
-        # we need to deal with RoW and RoE separately
-        for k, v in self.location_indices.items():
-            if k in ["RoW", "RoE"]:
-                processed_locations.add(k)
-                for x in v:
-                    dynamic_cfs = resolve_dynamic_regions(
-                        idx=x,
-                        idx_to_act=self.idx_to_act_map,
-                        act_to_locs=self.act_to_locations,
-                        cfs=cfs_data,
-                        weighting=self.weight
-                    )
-
-                    for flow, cf in dynamic_cfs.items():
-                        if flow not in self.flow_indices:
-                            self.ignored_flows.add(flow)
-                            continue
-                        flow_index = self.flow_indices[flow]
-                        val = cf["value"]
-                        self.characterization_matrix[flow_index, x] = val
-
-        self.characterization_matrix = self.characterization_matrix.tocsr()
-
-        # print unprocessed locations
-        unprocessed_locations = set(self.location_indices.keys()) - processed_locations
-        # add to self.ignored_locations
-        for loc in unprocessed_locations:
-            self.ignored_locations.add(loc)
-
-        if self.ignored_locations:
-            print(f"{len(processed_locations)} location-specific factors implemented. "
-                  f"{len(self.ignored_locations)} locations ignored. "
-                  f"Check self.ignored_locations.")
-
-        if self.ignored_flows:
-            print(f"{len(self.ignored_flows)} biosphere flows ignored. "
-                  f"Check self.ignored_flows.")
-
+        self.biosphere_characterization_matrix = self.biosphere_characterization_matrix.tocsr()
+        self.technosphere_characterization_matrix = self.technosphere_characterization_matrix.tocsr()
 
     def lcia_calculation(self):
         """
         Calculate the LCIA score.
         """
-        self.location_indices, self.idx_to_act_map, self.act_to_locations = get_location_matrix_positions(self)
-        self.flow_indices, self.reversed_flow_indices = get_flow_matrix_positions(self)
-        self.load_lcia_data()
-        self.characterized_inventory = self.characterization_matrix.multiply(self.inventory)
+
+        self.characterized_inventory = self.biosphere_characterization_matrix.multiply(self.inventory)
+
+        if self.ignored_locations:
+            print(f"{len(self.ignored_locations)} locations were ignored. Check .ignored_locations attribute.")
 
     def generate_cf_table(self):
         """
@@ -469,16 +591,20 @@ class RegionalLCA(LCA):
         """
 
         data = []
-
-        non_zero_indices = self.characterization_matrix.nonzero()
+        non_zero_indices = self.biosphere_characterization_matrix.nonzero()
 
         for i, j in zip(*non_zero_indices):
-            name, reference_product, location = self.idx_to_act_map[j]["name"], self.idx_to_act_map[j]["reference product"], self.idx_to_act_map[j]["location"]
+            activity = bw2data.get_activity(self.reversed_activity[j])
+            biosphere = bw2data.get_activity(self.reversed_biosphere[i])
+            name, reference_product, location = activity["name"], activity.get("reference product"), activity.get("location")
+
             data.append({
-                "flow": self.reversed_flow_indices[i],
+                "flow": (biosphere["name"], biosphere["categories"]),
                 "name": name,
                 "reference product": reference_product,
                 "location": location,
-                "value": self.characterization_matrix[i, j]
+                "amount": self.inventory[i, j],
+                "CF": self.biosphere_characterization_matrix[i, j],
+                "impact": self.characterized_inventory[i, j]
             })
         return pd.DataFrame(data)
