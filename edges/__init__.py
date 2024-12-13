@@ -1,5 +1,5 @@
-__all__ = ("RegionalLCA", "get_available_methods")
+__all__ = ("SpatialLCA", "get_available_methods")
 
 __version__ = "0.1.0"
 
-from .regionallcia import RegionalLCA, get_available_methods
+from .spatiallca import SpatialLCA, get_available_methods
