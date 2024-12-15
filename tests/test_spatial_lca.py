@@ -5,7 +5,7 @@ import numpy as np
 import bw2data, bw2io
 
 # Assuming SpatialLCA and related functions are in a module named spatiallcia
-from edges.spatiallca import SpatialLCA, initialize_lcia_matrix, preprocess_flows, compute_average_cf
+from edges.edgelcia import EdgeLCIA, initialize_lcia_matrix, preprocess_flows, compute_average_cf
 
 class TestSpatialLCA(unittest.TestCase):
 
@@ -14,7 +14,7 @@ class TestSpatialLCA(unittest.TestCase):
         self.demand = {bw2data.Database("Mobility example").random(): 1.0}
         self.method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
         self.weight = "population"
-        self.lca = SpatialLCA(self.demand, method=self.method, lcia_weight=self.weight)
+        self.lca = EdgeLCIA(self.demand, method=self.method, lcia_weight=self.weight)
 
         # Mock data for testing
         self.lca.technosphere_flows = [
