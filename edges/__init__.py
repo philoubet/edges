@@ -1,5 +1,5 @@
-__all__ = ("SpatialLCA", "get_available_methods")
+__all__ = ("EdgeLCIA", "get_available_methods")
 
 __version__ = "0.1.0"
 
-from .spatiallca import SpatialLCA, get_available_methods
+from .edgelcia import EdgeLCIA, get_available_methods

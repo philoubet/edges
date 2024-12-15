@@ -30,7 +30,7 @@ from bw2calc.utils import get_datapackage
 
 # initiate the logger
 logging.basicConfig(
-    filename='spatial_lcia.log',
+    filename='edgelcia.log',
     filemode='a',
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
@@ -170,10 +170,11 @@ def compute_average_cf(
     """
 
     # Filter constituents with valid weights
-    valid_constituents = [(c, weight[c]) for c in constituents if weight.get(c)]
+    valid_constituents = [(c, weight[c]) for c in constituents if c in weight]
     if not valid_constituents:
         return 0
 
+    # Separate constituents and weights
     constituents, weight_array = zip(*valid_constituents)
     weight_array = np.array(weight_array)
 
@@ -183,19 +184,28 @@ def compute_average_cf(
         return 0
     shares = weight_array / weight_sum
 
+    # Pre-filter suppliers
+    supplier_keys = supplier_info.keys()
+    supplier_tuple = tuple(supplier_info[k] for k in supplier_keys)
+
     # Compute the weighted average CF value
     value = 0
     for loc, share in zip(constituents, shares):
-        for cf in cfs_lookup.get(loc, []):
-            if all(cf["supplier"].get(k) == supplier_info.get(k) for k in supplier_info):
-                value += share * cf["value"]
+        loc_cfs = cfs_lookup.get(loc, [])
+        supplier_filter = tuple((k, supplier_info[k]) for k in supplier_keys)
+
+        filtered_cfs = [
+            cf["value"]
+            for cf in loc_cfs
+            if tuple((k, cf["supplier"].get(k)) for k in supplier_keys) == supplier_filter
+        ]
+        value += share * sum(filtered_cfs)
 
     # Log if shares don't sum to 1 due to precision issues
     if not np.isclose(shares.sum(), 1):
         logger.info(f"Shares for {region} do not sum to 1 but {shares.sum()}: {shares}")
 
     return value
-
 
 
 def find_region_constituents(
@@ -242,7 +252,7 @@ def preprocess_flows(flows_list, mandatory_fields):
         lookup.setdefault(key, []).append(flow["position"])
     return lookup
 
-class SpatialLCA(LCA):
+class EdgeLCIA(LCA):
     """
     Subclass of the `bw2io.lca.LCA` class that implements the calculation
     of the life cycle impact assessment (LCIA) results.
@@ -271,7 +281,6 @@ class SpatialLCA(LCA):
         """
 
         self.cfs_data = None
-        self.flows = None
         self.biosphere_edges = None
         self.technosphere_flows = None
         self.biosphere_flows = None
@@ -317,12 +326,22 @@ class SpatialLCA(LCA):
             self.decompose_technosphere()
         self.lci_calculation()
 
-        self.biosphere_flows = get_flow_matrix_positions(self.biosphere_dict)
-        self.technosphere_flows = get_flow_matrix_positions(self.product_dict)
-        self.flows = self.biosphere_flows + self.technosphere_flows
-
-        self.technosphere_edges = set(list(zip(*self.build_technosphere_edges_matrix().nonzero())))
+        self.technosphere_flow_matrix = self.build_technosphere_edges_matrix()
+        self.technosphere_edges = set(list(zip(*self.technosphere_flow_matrix.nonzero())))
         self.biosphere_edges = set(list(zip(*self.inventory.nonzero())))
+
+        unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
+        #unique_technosphere_flows = set(x[1] for x in self.biosphere_edges)
+
+        self.biosphere_flows = get_flow_matrix_positions({
+            k: v for k, v in self.biosphere_dict.items()
+            if v in unique_biosphere_flows
+        })
+
+        self.technosphere_flows = get_flow_matrix_positions({
+            k: v for k, v in self.activity_dict.items()
+            #if v in unique_technosphere_flows
+        })
 
         self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
 
@@ -345,7 +364,7 @@ class SpatialLCA(LCA):
         # Create the flow matrix in sparse format
         flow_matrix_sparse = coo_matrix((scaled_data, (rows, cols)), shape=self.technosphere_matrix.shape)
 
-        return flow_matrix_sparse
+        return flow_matrix_sparse.tocsr()
 
     def load_lcia_data(self, data_objs=None):
         """
@@ -492,6 +511,8 @@ class SpatialLCA(LCA):
         # Preprocess flows and lookups
         supplier_lookup, consumer_lookup, reversed_supplier_lookup, reversed_consumer_lookup = preprocess_lookups()
 
+        edges = self.biosphere_edges if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data) else self.technosphere_edges
+
         for cf in self.cfs_data:
             # Generate supplier candidates
             supplier_key = tuple((k, v) for k, v in cf["supplier"].items() if k not in IGNORED_FIELDS)
@@ -506,7 +527,7 @@ class SpatialLCA(LCA):
                 (supplier, consumer)
                 for supplier in supplier_candidates
                 for consumer in consumer_candidates
-                if (supplier, consumer) in self.biosphere_edges
+                if (supplier, consumer) in edges
             ]
 
         # Preprocess `self.technosphere_flows` once
@@ -557,54 +578,97 @@ class SpatialLCA(LCA):
         Translate the data to indices in the inventory matrix.
         """
 
-        self.biosphere_characterization_matrix = initialize_lcia_matrix(self)
-        self.technosphere_characterization_matrix = initialize_lcia_matrix(self)
+        if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data):
+            self.characterization_matrix = initialize_lcia_matrix(self)
+        else:
+            self.characterization_matrix = initialize_lcia_matrix(self, type="technosphere")
 
         self.identify_exchanges()
 
         for cf in self.cfs_data:
             for supplier, consumer in cf.get("biosphere-technosphere", []):
-                self.biosphere_characterization_matrix[supplier, consumer] = cf["value"]
+                self.characterization_matrix[supplier, consumer] = cf["value"]
 
             for supplier, consumer in cf.get("technosphere-technosphere", []):
-                self.technosphere_characterization_matrix[supplier, consumer] = cf["value"]
+                self.characterization_matrix[supplier, consumer] = cf["value"]
 
-        self.biosphere_characterization_matrix = self.biosphere_characterization_matrix.tocsr()
-        self.technosphere_characterization_matrix = self.technosphere_characterization_matrix.tocsr()
+        self.characterization_matrix = self.characterization_matrix.tocsr()
 
     def lcia_calculation(self):
         """
         Calculate the LCIA score.
         """
-
+        self.load_lcia_data()
         self.fill_in_lcia_matrix()
 
-        self.characterized_inventory = self.biosphere_characterization_matrix.multiply(self.inventory)
+        try:
+            self.characterized_inventory = self.characterization_matrix.multiply(self.inventory)
+        except ValueError:
+            self.characterized_inventory = self.characterization_matrix.multiply(self.technosphere_flow_matrix)
 
         if self.ignored_locations:
             print(f"{len(self.ignored_locations)} locations were ignored. Check .ignored_locations attribute.")
 
     def generate_cf_table(self):
         """
-        Generate a pandas dataframe with the characterization factors,
+        Generate a pandas DataFrame with the characterization factors,
         from self.characterization_matrix.
         """
+        # Determine the matrix type
+        is_biosphere = all("biosphere-technosphere" in cf for cf in self.cfs_data)
+        print(f"Matrix type: {'biosphere' if is_biosphere else 'technosphere'}")
+        inventory = self.inventory if is_biosphere else self.technosphere_flow_matrix
 
         data = []
-        non_zero_indices = self.biosphere_characterization_matrix.nonzero()
+        non_zero_indices = self.characterization_matrix.nonzero()
 
         for i, j in zip(*non_zero_indices):
-            activity = bw2data.get_activity(self.reversed_activity[j])
-            biosphere = bw2data.get_activity(self.reversed_biosphere[i])
-            name, reference_product, location = activity["name"], activity.get("reference product"), activity.get("location")
+            consumer = bw2data.get_activity(self.reversed_activity[j])
+            supplier = bw2data.get_activity(
+                self.reversed_biosphere[i] if is_biosphere else self.reversed_activity[i]
+            )
 
-            data.append({
-                "flow": (biosphere["name"], biosphere["categories"]),
-                "name": name,
-                "reference product": reference_product,
-                "location": location,
-                "amount": self.inventory[i, j],
-                "CF": self.biosphere_characterization_matrix[i, j],
-                "impact": self.characterized_inventory[i, j]
-            })
-        return pd.DataFrame(data)
+            entry = {
+                "supplier name": supplier["name"],
+                "consumer name": consumer["name"],
+                "consumer reference product": consumer.get("reference product"),
+                "consumer location": consumer.get("location"),
+                "amount": inventory[i, j],
+                "CF": self.characterization_matrix[i, j],
+                "impact": self.characterized_inventory[i, j],
+            }
+
+            # Add supplier-specific fields based on matrix type
+            if is_biosphere:
+                entry.update({"supplier categories": supplier.get("categories")})
+            else:
+                entry.update({
+                    "supplier reference product": supplier.get("reference product"),
+                    "supplier location": supplier.get("location"),
+                })
+
+            data.append(entry)
+
+        # Create the DataFrame
+        df = pd.DataFrame(data)
+
+        # Specify the desired column order
+        column_order = [
+            "supplier name",
+            "supplier categories",
+            "supplier reference product",
+            "supplier location",
+            "consumer name",
+            "consumer reference product",
+            "consumer location",
+            "amount",
+            "CF",
+            "impact"
+        ]
+
+        # Reorder columns based on the desired order, ignoring missing columns
+        df = df[[col for col in column_order if col in df.columns]]
+
+        return df
+
+
