@@ -21,7 +21,11 @@ requirements:
     - bw2calc
     - bw2data
     - bw2io
+    - bw2analyzer
     - constructive_geometries
+    - numpy
+    - pandas
+    - scipy
 
 test:
   imports:
@@ -30,5 +34,5 @@ test:
 about:
   home: https://github.com/Laboratory-for-Energy-Systems-Analysis/edges
   license: MIT License
-  summary: 'Country-specific characterization factors for the LCA framework Brightway2'
+  summary: 'Edge-specific characterization factors for the LCA framework Brightway2'
 license_family: MIT

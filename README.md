@@ -56,7 +56,7 @@ print(methods)
 
 ```python
 import bw2data
-from edges import SpatialLCA
+from edges import EdgeLCIA
 
 # Select an activity from the LCA database
 act = bw2data.Database("ecoinvent-3.10-cutoff").random()
@@ -65,7 +65,7 @@ act = bw2data.Database("ecoinvent-3.10-cutoff").random()
 method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
 
 # Initialize the LCA object
-LCA = SpatialLCA({act: 1}, method)
+LCA = EdgeLCIA({act: 1}, method)
 LCA.lci()
 # Perform the LCAI calculation
 LCA.lcia()
