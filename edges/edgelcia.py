@@ -438,7 +438,6 @@ class EdgeLCIA(LCA):
                 required_supplier_fields
             )
 
-            print(list(supplier_lookup.items())[:5])
             consumer_lookup = preprocess_flows(self.technosphere_flows, required_consumer_fields)
 
             reversed_supplier_lookup = {
@@ -574,12 +573,6 @@ class EdgeLCIA(LCA):
                 required_consumer_fields
             )
 
-            print(f"cf['supplier']: {cf['supplier']}")
-            print(f"cf['consumer']: {cf['consumer']}")
-
-            print(f"Supplier candidates: {supplier_candidates}")
-            print(f"Consumer candidates: {consumer_candidates}")
-
             # Create pairs of supplier and consumer candidates
             cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
                 (supplier, consumer)
@@ -587,9 +580,6 @@ class EdgeLCIA(LCA):
                 for consumer in consumer_candidates
                 if (supplier, consumer) in edges
             ]
-
-            print(cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"])
-            print()
 
         # Preprocess `self.technosphere_flows` once
         if not hasattr(self, "technosphere_flows_lookup"):
@@ -639,9 +629,6 @@ class EdgeLCIA(LCA):
 
         unprocessed_biosphere_edges = set(unprocessed_biosphere_edges) - processed_biosphere_edges
         unprocessed_technosphere_edges = set(unprocessed_technosphere_edges) - processed_technosphere_edges
-
-        print(f"Unprocessed biosphere edges: {len(unprocessed_biosphere_edges)}")
-        print(f"Unprocessed technosphere edges: {len(unprocessed_technosphere_edges)}")
 
 
     def fill_in_lcia_matrix(self):
