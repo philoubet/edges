@@ -244,13 +244,37 @@ def find_region_constituents(
 def preprocess_flows(flows_list, mandatory_fields):
     """
     Preprocess flows into a lookup dictionary.
+    :param flows_list: List of flows.
+    :param mandatory_fields: Fields that must be included in the lookup key.
+    :return: A dictionary for flow lookups.
     """
     lookup = {}
     for flow in flows_list:
-        # Create a hashable key excluding ignored fields
-        key = tuple((k, v) for k, v in flow.items() if k in mandatory_fields and v is not None)
+        key = tuple(
+            (k, v)
+            for k, v in flow.items()
+            if k in mandatory_fields and v is not None
+        )
         lookup.setdefault(key, []).append(flow["position"])
     return lookup
+
+def match_operator(value, target, operator):
+    """
+    Match a value against a target using the specified operator.
+    :param value: The value to match.
+    :param target: The target value to compare against.
+    :param operator: The matching operator (equals, contains, startswith).
+    :return: True if the value matches the target based on the operator.
+    """
+    if operator == "equals":
+        return value == target
+    elif operator == "contains":
+        return value in target
+    elif operator == "startswith":
+        return target.startswith(value)
+    else:
+        raise ValueError(f"Unsupported operator: {operator}")
+
 
 class EdgeLCIA(LCA):
     """
@@ -331,7 +355,6 @@ class EdgeLCIA(LCA):
         self.biosphere_edges = set(list(zip(*self.inventory.nonzero())))
 
         unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
-        #unique_technosphere_flows = set(x[1] for x in self.biosphere_edges)
 
         self.biosphere_flows = get_flow_matrix_positions({
             k: v for k, v in self.biosphere_dict.items()
@@ -340,7 +363,6 @@ class EdgeLCIA(LCA):
 
         self.technosphere_flows = get_flow_matrix_positions({
             k: v for k, v in self.activity_dict.items()
-            #if v in unique_technosphere_flows
         })
 
         self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
@@ -384,6 +406,28 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
+        def match_with_operator(flow, lookup, required_fields):
+            """
+            Match a flow against a lookup dictionary considering the operator.
+            :param flow: The flow to match.
+            :param lookup: The lookup dictionary.
+            :param required_fields: The required fields for matching.
+            :return: A list of matching positions.
+            """
+            matches = []
+            for key, positions in lookup.items():
+                if all(
+                        match_operator(
+                            value=flow.get(k),
+                            target=v,
+                            operator=flow.get("operator", "equals")
+                        )
+                        for (k, v) in key
+                        if k in required_fields
+                ):
+                    matches.extend(positions)
+            return matches
+
         def preprocess_lookups():
             """
             Preprocess supplier and consumer flows into lookup dictionaries.
@@ -393,6 +437,8 @@ class EdgeLCIA(LCA):
                 else self.technosphere_flows,
                 required_supplier_fields
             )
+
+            print(list(supplier_lookup.items())[:5])
             consumer_lookup = preprocess_flows(self.technosphere_flows, required_consumer_fields)
 
             reversed_supplier_lookup = {
@@ -498,7 +544,7 @@ class EdgeLCIA(LCA):
                         self.ignored_locations.add(location)
 
         # Constants for ignored fields
-        IGNORED_FIELDS = {"matrix", "population", "gdp"}
+        IGNORED_FIELDS = {"matrix", "population", "gdp", "operator"}
 
         # Precompute required fields for faster access
         required_supplier_fields = {
@@ -515,12 +561,24 @@ class EdgeLCIA(LCA):
 
         for cf in self.cfs_data:
             # Generate supplier candidates
-            supplier_key = tuple((k, v) for k, v in cf["supplier"].items() if k not in IGNORED_FIELDS)
-            supplier_candidates = supplier_lookup.get(supplier_key, [])
+            supplier_candidates = match_with_operator(
+                cf["supplier"],
+                supplier_lookup,
+                required_supplier_fields
+            )
 
             # Generate consumer candidates
-            consumer_key = tuple((k, v) for k, v in cf["consumer"].items() if k not in IGNORED_FIELDS)
-            consumer_candidates = consumer_lookup.get(consumer_key, [])
+            consumer_candidates = match_with_operator(
+                cf["consumer"],
+                consumer_lookup,
+                required_consumer_fields
+            )
+
+            print(f"cf['supplier']: {cf['supplier']}")
+            print(f"cf['consumer']: {cf['consumer']}")
+
+            print(f"Supplier candidates: {supplier_candidates}")
+            print(f"Consumer candidates: {consumer_candidates}")
 
             # Create pairs of supplier and consumer candidates
             cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
@@ -529,6 +587,9 @@ class EdgeLCIA(LCA):
                 for consumer in consumer_candidates
                 if (supplier, consumer) in edges
             ]
+
+            print(cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"])
+            print()
 
         # Preprocess `self.technosphere_flows` once
         if not hasattr(self, "technosphere_flows_lookup"):
@@ -571,6 +632,16 @@ class EdgeLCIA(LCA):
             cf for cf in self.cfs_data
             if any([cf.get("biosphere-technosphere"), cf.get("technosphere-technosphere")])
         ]
+
+        # figure out remaining unprocessed edges for information
+        processed_biosphere_edges = {f for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])}
+        processed_technosphere_edges = {f for cf in self.cfs_data for f in cf.get("technosphere-technosphere", [])}
+
+        unprocessed_biosphere_edges = set(unprocessed_biosphere_edges) - processed_biosphere_edges
+        unprocessed_technosphere_edges = set(unprocessed_technosphere_edges) - processed_technosphere_edges
+
+        print(f"Unprocessed biosphere edges: {len(unprocessed_biosphere_edges)}")
+        print(f"Unprocessed technosphere edges: {len(unprocessed_technosphere_edges)}")
 
 
     def fill_in_lcia_matrix(self):
