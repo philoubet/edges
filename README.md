@@ -2,32 +2,32 @@
 
 [![PyPI version](https://badge.fury.io/py/edges.svg)](https://badge.fury.io/py/csc-brightway)
 
-``edges`` is a Python Library for Contextual Impact Assessment in 
+``edges`` is a Python Library for exchange-based Impact Assessment in 
 Life Cycle Analysis (LCA) for the ``brightway2`` LCA framework.
 
 The *edges* Python library introduces an innovative approach to the application 
 of characterization factors during the impact assessment phase of Life Cycle 
 Assessment (LCA). Unlike traditional impact assessment methods that apply 
-characterization factors to *nodes* (e.g., *nodes* like `Carbon dioxide, fossil` in the 
-``brightway2`` ecosystem, which is assigned a Global Warming Potential (GWP) 
-factor of 1), ``edges`` applies these factors directly to *edges* between *nodes*.
-To do this, ``edges`` injects off-diagonal values in the *characterization matrix*, of
-which the value is determined by the context of the edge.
+characterization factors to *nodes* (e.g., processes like `Carbon dioxide, fossil` in the 
+``brightway2`` ecosystem, often assigned a Global Warming Potential (GWP) 
+factor of 1), ``edges`` applies these factors directly to *edges* between *nodes* 
+(or exchanges between processes).  To do this, ``edges`` introduces specific values 
+in the *characterization matrix*, determined by the context of the edge/exchange.
 
 *Edges* represent the relationships or exchanges between *nodes*, allowing ``edges`` 
 to leverage contextual information such as the attributes of both suppliers 
-and consumers. This approach enables a more nuanced and flexible characterization 
+and consumers (e.g., location, ISIC classification, amount exchanged, etc.). 
+This approach enables a more nuanced and flexible characterization 
 of impacts, incorporating additional parameters such as the geographic location 
-of the consumer or the magnitude of the exchanged flow. For instance, the 
-library can adjust the characterization factor based on the location of the 
-consumer or scale it relative to the amount exchanged, offering a more 
-context-sensitive impact assessment framework.
+of the consumer or the magnitude of the exchanged flow. 
 
 ## Features
 
-- **Country-specific characterization factors** for water-related impacts.
+- **Country-specific characterization factors** for water- and metals-related use.
 - **Seamless integration** with the Brightway LCA framework.
-- Implements national and sub-national characterization factors of the **AWARE method 1.2c**.
+- Implements national and sub-national characterization factors of:
+  - the **AWARE method 1.2c**,
+  - the **GeoPolRisk 2024** method.
 - Future updates will include additional impact categories.
 
 ## Installation
@@ -82,6 +82,8 @@ LCA.generate_cf_table()
 precise country-specific data for environmental modeling. Refer to the AWARE 
 website [https://wulca-waterlca.org/](https://wulca-waterlca.org/) for more information.
 
+* **GeoPolRisk**: The GeoPolRisk factors are extracted for the [``geopolrisk-py``](https://github.com/akoyamp/geopolrisk-py) library.
+
 ## Methodology
 
 1. ``edges`` introduces edge-specific characterization factors
@@ -89,7 +91,8 @@ in the characterization matrix of ``bw2calc`` before performing the LCA calculat
 The characterization factors are stored in the ``data`` folder of the library. 
 Currently, ``edges`` provides characterization factors for 346 national and 
 sub-national regions, based on the [AWARE](https://wulca-waterlca.org/aware/) method,
-based on the location of edge consumers.
+based on the location of edge consumers. It also provides characterization 
+factors for 215 countries and 42 metals, based on the [GeoPolRisk](https://github.com/akoyamp/geopolrisk-py) method.
 
 2. For specific ``ecoinvent`` regions (e.g., RER, Canada without Quebec, etc.), 
 ``edges`` computes the weighted average of the characterization factors for the 
