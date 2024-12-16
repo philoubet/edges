@@ -6,3 +6,4 @@ bw2data
 bw2io
 bw2analyzer
 constructive_geometries
+prettytable

@@ -15,6 +15,8 @@ from collections import defaultdict
 from constructive_geometries import Geomatcher
 import logging
 import pandas as pd
+from prettytable import PrettyTable
+
 
 from .filesystem_constants import DATA_DIR
 
@@ -28,6 +30,10 @@ from bw2calc import prepare_lca_inputs, PYPARDISO
 from bw2calc.dictionary_manager import DictionaryManager
 from bw2calc.utils import get_datapackage
 
+# delete the logs
+with open('edgelcia.log', 'w'):
+    pass
+
 # initiate the logger
 logging.basicConfig(
     filename='edgelcia.log',
@@ -37,6 +43,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+
 
 
 geo = Geomatcher()
@@ -157,7 +165,6 @@ def preprocess_cfs(cfs: list) -> dict:
             cfs_lookup[location].append(cf)
     return cfs_lookup
 
-
 def compute_average_cf(
     constituents: list,
     supplier_info: dict,
@@ -167,6 +174,12 @@ def compute_average_cf(
 ):
     """
     Compute the average characterization factors for the region.
+    :param constituents: List of constituent regions.
+    :param supplier_info: Information about the supplier.
+    :param weight: Weights for the constituents.
+    :param cfs_lookup: Lookup dictionary for characterization factors.
+    :param region: The region being evaluated.
+    :return: The weighted average CF value.
     """
 
     # Filter constituents with valid weights
@@ -184,21 +197,35 @@ def compute_average_cf(
         return 0
     shares = weight_array / weight_sum
 
-    # Pre-filter suppliers
+    # Pre-filter supplier keys for filtering
     supplier_keys = supplier_info.keys()
     supplier_tuple = tuple(supplier_info[k] for k in supplier_keys)
+
+    def match_supplier(cf, supplier_info):
+        """
+        Match a supplier based on operator logic.
+        """
+        for key in supplier_keys:
+            supplier_value = supplier_info.get(key)
+            cf_value = cf["supplier"].get(key)
+            operator = cf["supplier"].get("operator", "equals")
+
+            if not match_operator(cf_value, supplier_value, operator):
+                return False
+        return True
 
     # Compute the weighted average CF value
     value = 0
     for loc, share in zip(constituents, shares):
         loc_cfs = cfs_lookup.get(loc, [])
-        supplier_filter = tuple((k, supplier_info[k]) for k in supplier_keys)
 
+        # Filter CFs based on supplier info using the operator logic
         filtered_cfs = [
             cf["value"]
             for cf in loc_cfs
-            if tuple((k, cf["supplier"].get(k)) for k in supplier_keys) == supplier_filter
+            if match_supplier(cf, supplier_info)
         ]
+
         value += share * sum(filtered_cfs)
 
     # Log if shares don't sum to 1 due to precision issues
@@ -275,6 +302,22 @@ def match_operator(value, target, operator):
     else:
         raise ValueError(f"Unsupported operator: {operator}")
 
+def check_database_references(cfs, tech_flows, bio_flows) -> list:
+
+    locations_available = set([x["location"] for x in tech_flows])
+    unavailable_locations = []
+
+    for cf in cfs:
+        if "location" in cf["consumer"]:
+            location = cf["consumer"]["location"]
+            if location not in locations_available:
+                unavailable_locations.append(location)
+
+    print("Warning: some locations are not found in the database. Check logs.")
+    logger.info(f"Method locations not found in the database: {set(unavailable_locations)}")
+
+    # remove the cfs with locations not found in the database
+    return [cf for cf in cfs if cf["consumer"].get("location") in locations_available]
 
 class EdgeLCIA(LCA):
     """
@@ -399,6 +442,7 @@ class EdgeLCIA(LCA):
 
         with open(data_file, "r") as f:
             self.cfs_data = format_data(json.load(f))
+            self.cfs_data = check_database_references(self.cfs_data, self.technosphere_flows, self.biosphere_flows)
 
     def identify_exchanges(self):
         """
@@ -449,9 +493,10 @@ class EdgeLCIA(LCA):
 
             return supplier_lookup, consumer_lookup, reversed_supplier_lookup, reversed_consumer_lookup
 
-        def process_edges(direction, unprocessed_edges, cfs_lookup, unprocessed_locations_cache):
+        def handle_static_regions(direction, unprocessed_edges, cfs_lookup, unprocessed_locations_cache):
             """
-            Process edges for the given direction and update CF data.
+            Handle static regions and update CF data (e.g., RER, GLO, ENTSOE, etc.).
+            CFs are obtained by averaging the CFs of the constituents of the region.
             """
             for supplier_idx, consumer_idx in unprocessed_edges:
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
@@ -464,7 +509,7 @@ class EdgeLCIA(LCA):
                         supplier_idx) or find_region_constituents(
                         region=location, supplier_info=supplier_info, cfs=cfs_lookup, weight=weight
                     )
-                    if new_cf:
+                    if new_cf != 0:
                         unprocessed_locations_cache[location][supplier_idx] = new_cf
                         self.cfs_data.append({
                             "supplier": supplier_info,
@@ -612,8 +657,8 @@ class EdgeLCIA(LCA):
         weight = {i.get("consumer").get("location"): i.get("consumer").get(self.weight) for i in self.cfs_data if i.get("consumer").get("location")}
         geo_cache = {}
 
-        process_edges("biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup, defaultdict(dict))
-        process_edges("technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup, defaultdict(dict))
+        handle_static_regions("biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup, defaultdict(dict))
+        handle_static_regions("technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup, defaultdict(dict))
 
         handle_dynamic_regions("biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup)
         handle_dynamic_regions("technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup)
@@ -629,6 +674,28 @@ class EdgeLCIA(LCA):
 
         unprocessed_biosphere_edges = set(unprocessed_biosphere_edges) - processed_biosphere_edges
         unprocessed_technosphere_edges = set(unprocessed_technosphere_edges) - processed_technosphere_edges
+
+        if unprocessed_biosphere_edges:
+            # print a pretty table and list the flows which have not been characterized
+            print(f"{len(unprocessed_biosphere_edges)} supplying biosphere flows have not been characterized:")
+            table = PrettyTable()
+            table.field_names = ["Name", "Categories", "Amount"]
+            for i, j in unprocessed_biosphere_edges:
+                flow = bw2data.get_activity(self.reversed_biosphere[i])
+                table.add_row([flow["name"], flow.get("categories"), self.inventory[i, j]])
+            print(table)
+
+        if unprocessed_technosphere_edges:
+            # print a pretty table and list the flows which have not been characterized
+            print(f"{len(unprocessed_technosphere_edges)} supplying technosphere flows have not been characterized:")
+            table = PrettyTable()
+            table.field_names = ["Name", "Reference product", "Location", "Amount"]
+            for i, j in unprocessed_technosphere_edges:
+                flow = bw2data.get_activity(self.reversed_activity[i])
+                table.add_row([flow["name"], flow.get("reference product"), flow.get("location"), self.technosphere_flow_matrix[i, j]])
+            print(table)
+
+
 
 
     def fill_in_lcia_matrix(self):
