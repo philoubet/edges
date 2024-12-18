@@ -7,10 +7,6 @@ name = "edges"
 authors = [
   { name="Romain Sacchi", email="romain.sacchi@psi.ch" },
   { name="Alvaro Hahn Menacho", email="alvaro.hahn-menacho@psi.ch" },
-  { name="Joanna Schlesinger", email="joanna.schlesinger@minesparis.psl.eu" },
-  { name="Juliana Steinbach", email="juliana.steinbach@minesparis.psl.eu" },
-  { name="Thomas Beaussier", email="thomas.beaussier@minesparis.psl.eu" },
-
 ]
 maintainers = [
   { name="Romain Sacchi", email="romain.sacchi@psi.ch" }

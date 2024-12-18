@@ -8,10 +8,9 @@ Life Cycle Analysis (LCA) for the ``brightway2`` LCA framework.
 The *edges* Python library introduces an innovative approach to the application 
 of characterization factors during the impact assessment phase of Life Cycle 
 Assessment (LCA). Unlike traditional impact assessment methods that apply 
-characterization factors to *nodes* (e.g., processes like `Carbon dioxide, fossil` in the 
-``brightway2`` ecosystem, often assigned a Global Warming Potential (GWP) 
-factor of 1), ``edges`` applies these factors directly to *edges* between *nodes* 
-(or exchanges between processes).  To do this, ``edges`` introduces specific values 
+characterization factors (CF) to *nodes* (e.g., processes like `Water, from well` in the 
+``brightway2`` ecosystem, which is assigned a specific CF), ``edges`` leverages on the *edges* between *nodes* 
+(or exchanges between processes) to condition the CF to apply.  In a nutshell, ``edges`` introduces specific values 
 in the *characterization matrix*, determined by the context of the edge/exchange.
 
 *Edges* represent the relationships or exchanges between *nodes*, allowing ``edges`` 
@@ -23,11 +22,10 @@ of the consumer or the magnitude of the exchanged flow.
 
 ## Features
 
-- **Country-specific characterization factors** for water- and metals-related use.
+- **National characterization factors** for water-related impacts.
 - **Seamless integration** with the Brightway LCA framework.
 - Implements national and sub-national characterization factors of:
-  - the **AWARE method 1.2c**,
-  - the **GeoPolRisk 2024** method.
+  - the **AWARE method 1.2c**.
 - Future updates will include additional impact categories.
 
 ## Installation
@@ -82,8 +80,6 @@ LCA.generate_cf_table()
 precise country-specific data for environmental modeling. Refer to the AWARE 
 website [https://wulca-waterlca.org/](https://wulca-waterlca.org/) for more information.
 
-* **GeoPolRisk**: The GeoPolRisk factors are extracted for the [``geopolrisk-py``](https://github.com/akoyamp/geopolrisk-py) library.
-
 ## Methodology
 
 1. ``edges`` introduces edge-specific characterization factors
@@ -91,8 +87,7 @@ in the characterization matrix of ``bw2calc`` before performing the LCA calculat
 The characterization factors are stored in the ``data`` folder of the library. 
 Currently, ``edges`` provides characterization factors for 346 national and 
 sub-national regions, based on the [AWARE](https://wulca-waterlca.org/aware/) method,
-based on the location of edge consumers. It also provides characterization 
-factors for 215 countries and 42 metals, based on the [GeoPolRisk](https://github.com/akoyamp/geopolrisk-py) method.
+based on the location of edge consumers. 
 
 2. For specific ``ecoinvent`` regions (e.g., RER, Canada without Quebec, etc.), 
 ``edges`` computes the weighted average of the characterization factors for the 
@@ -125,9 +120,6 @@ at [romain.sacchi@psi.ch](mailto:romain.sacchi@psi.ch).
 
 - [Romain Sacchi](https://github.com/romainsacchi)
 - [Alvaro Hahn Menacho](https://github.com/alvarojhahn)
-- [Joanna Schlesinger](https://github.com/joanna-schles)
-- [Juliana Steinbach](https://github.com/juliana-steinbach)
-- Thomas Beaussier
 
 ## Acknowledgments
 The development of this library was entirely supported by the French agency for 
