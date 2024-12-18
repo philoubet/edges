@@ -66,23 +66,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --upgrade setuptools wheel
-          pip install --upgrade pip
-          pip install --force-reinstall setuptools
           pip install -r requirements.txt --upgrade pip
           pip install pytest
           pip install pytest-instafail
-          pip install -e . --verbose
-          pip check
+          
 
       - name: Run tests
         run: |
-          pytest -m "not slow" --instafail
-        env:
-          GITHUB_TOKEN: ${{ secrets.COVERALLS }}
-          IAM_FILES_KEY: ${{ secrets.IAM_FILES_KEY }}
-          EI_USERNAME: ${{ secrets.EI_USERNAME }}
-          EI_PASSWORD: ${{ secrets.EI_PASSWORD }}
+          pytest
+
 
   Pypi:
     runs-on: ubuntu-latest
@@ -207,6 +199,3 @@ jobs:
         run: |
           conda install romainsacchi::edges
           conda update edges
-          conda install bottleneck
-        env:
-          IAM_FILES_KEY: ${{ secrets.IAM_FILES_KEY }}
