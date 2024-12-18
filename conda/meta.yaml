@@ -18,15 +18,17 @@ requirements:
     - python
     - setuptools
   run:
-    - bw2calc
+    - numpy
+    - pandas
+    - scipy
+    - pyyaml
+    - bw2calc>=2.0.0
     - bw2data
     - bw2io
     - bw2analyzer
     - constructive_geometries
-    - numpy
-    - pandas
-    - scipy
     - prettytable
+
 
 test:
   imports:
