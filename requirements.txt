@@ -1,6 +1,7 @@
 numpy
 pandas
 scipy
+pyyaml
 bw2calc>=2.0.0
 bw2data
 bw2io
