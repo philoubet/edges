@@ -4,26 +4,21 @@ impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
 
-import json
-import numpy as np
-from bw2calc import LCA
-import bw2data
-from scipy.sparse import coo_matrix
 from collections import defaultdict
-from constructive_geometries import Geomatcher
 import logging
+from pathlib import Path
+import json
+from typing import Iterable, Optional, Union
+from fsspec import AbstractFileSystem
+import numpy as np
+
+from scipy.sparse import coo_matrix
+from constructive_geometries import Geomatcher
 import pandas as pd
 from prettytable import PrettyTable
-
-
-from .filesystem_constants import DATA_DIR
-
-from pathlib import Path
-from typing import Iterable, Optional, Union
-
 import bw_processing as bwp
-from fsspec import AbstractFileSystem
-
+from bw2calc import LCA
+import bw2data
 from bw2calc import prepare_lca_inputs, PYPARDISO
 from bw2calc.dictionary_manager import DictionaryManager
 from bw2calc.utils import get_datapackage
@@ -35,9 +30,10 @@ from .utils import (
     preprocess_cfs,
     check_database_references,
 )
+from .filesystem_constants import DATA_DIR
 
 # delete the logs
-with open("edgelcia.log", "w"):
+with open("edgelcia.log", "w", encoding="utf-8"):
     pass
 
 # initiate the logger
@@ -120,6 +116,8 @@ def compute_average_cf(
 
     return value
 
+def get_str(x):
+    return x if isinstance(x, str) else x[-1]
 
 def find_region_constituents(
     region: str, supplier_info: dict, cfs: dict, weight: dict
@@ -133,10 +131,8 @@ def find_region_constituents(
     :return: The new CF value.
     """
 
-    _ = lambda x: x if isinstance(x, str) else x[-1]
-
     try:
-        constituents = [_(g) for g in geo.contained(region) if _(g) in weight]
+        constituents = [get_str(g) for g in geo.contained(region) if get_str(g) in weight]
     except KeyError:
         logger.info(f"Region: {region}. No geometry found.")
         return 0
@@ -179,12 +175,11 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     """
     if operator == "equals":
         return value == target
-    elif operator == "contains":
+    if operator == "contains":
         return value in target
-    elif operator == "startswith":
+    if operator == "startswith":
         return target.startswith(value)
-    else:
-        raise ValueError(f"Unsupported operator: {operator}")
+    raise ValueError(f"Unsupported operator: {operator}")
 
 
 class EdgeLCIA(LCA):
@@ -217,6 +212,13 @@ class EdgeLCIA(LCA):
         `prepare_lca_inputs` while still being available in the class.
         """
 
+        self.reversed_biosphere = None
+        self.reversed_activity = None
+        self.characterization_matrix = None
+        self.position_to_technosphere_flows_lookup = None
+        self.technosphere_flows_lookup = None
+        self.technosphere_edges = None
+        self.technosphere_flow_matrix = None
         self.cfs_data = None
         self.biosphere_edges = None
         self.technosphere_flows = None
@@ -279,7 +281,7 @@ class EdgeLCIA(LCA):
         )
 
         self.technosphere_flows = get_flow_matrix_positions(
-            {k: v for k, v in self.activity_dict.items()}
+            self.activity_dict.items()
         )
 
         self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
@@ -315,7 +317,7 @@ class EdgeLCIA(LCA):
         if not data_file.is_file():
             raise FileNotFoundError(f"Data file not found: {data_file}")
 
-        with open(data_file, "r") as f:
+        with open(data_file, "r", encoding="utf-8") as f:
             self.cfs_data = format_data(json.load(f))
             self.cfs_data = check_database_references(
                 self.cfs_data, self.technosphere_flows, self.biosphere_flows
@@ -481,17 +483,15 @@ class EdgeLCIA(LCA):
                             set(geo.contained("RER")) - set(other_than_RoW_RoE)
                         )
 
-                    _ = lambda x: x if isinstance(x, str) else x[-1]
-
                     extra_constituents = []
                     for constituent in constituents:
                         if constituent not in weight:
                             extras = [
-                                _(e)
+                                get_str(e)
                                 for e in geo_cache.get(
                                     constituent, geo.contained(constituent)
                                 )
-                                if _(e) in weight and e != constituent
+                                if get_str(e) in weight and e != constituent
                             ]
                             extra_constituents.extend(extras)
                             geo_cache[constituent] = extras

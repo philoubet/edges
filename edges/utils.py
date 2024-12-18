@@ -1,14 +1,27 @@
+"""
+Utility functions for the LCIA methods implementation.
+"""
+
 import os
 from collections import defaultdict
+import logging
 
 import bw2data
 import yaml
 from bw2calc import LCA
 from scipy.sparse import lil_matrix
 
-from edges.edgelcia import logger
-from edges.filesystem_constants import DATA_DIR
+from .filesystem_constants import DATA_DIR
 
+
+logging.basicConfig(
+    filename="edgelcia.log",
+    filemode="a",
+    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
 
 def format_method_name(name: str) -> tuple:
     """
@@ -69,11 +82,11 @@ def add_population_and_gdp_data(data: list) -> list:
     :return: The data for the LCIA method with population and GDP data.
     """
     # load population data from data/population.yaml
-    with open(DATA_DIR / "metadata" / "population.yaml", "r") as f:
+    with open(DATA_DIR / "metadata" / "population.yaml", "r", encoding="utf-8") as f:
         population_data = yaml.safe_load(f)
 
     # load GDP data from data/gdp.yaml
-    with open(DATA_DIR / "metadata" / "gdp.yaml", "r") as f:
+    with open(DATA_DIR / "metadata" / "gdp.yaml", "r", encoding="utf-8") as f:
         gdp_data = yaml.safe_load(f)
 
     # add to the data dictionary
@@ -96,8 +109,7 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
     """
     if matrix_type == "biosphere":
         return lil_matrix(lca.inventory.shape)
-    else:
-        return lil_matrix(lca.technosphere_matrix.shape)
+    return lil_matrix(lca.technosphere_matrix.shape)
 
 
 def get_flow_matrix_positions(mapping: dict) -> list:
@@ -148,7 +160,7 @@ def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> l
 
     """
 
-    locations_available = set([x["location"] for x in tech_flows])
+    locations_available = set(x["location"] for x in tech_flows)
     unavailable_locations = []
 
     for cf in cfs:

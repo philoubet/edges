@@ -4,9 +4,9 @@ https://docs.brightway.dev/en/legacy/_modules/bw2analyzer/comparisons.html#compa
 
 """
 
+from os.path import commonprefix
 import pandas as pd
 import operator
-from os.path import commonprefix
 import tabulate
 from bw2analyzer.comparisons import get_value_for_cpc
 import bw2data as bd
@@ -60,16 +60,16 @@ def find_leaves(
 
             return results, cache
 
-        else:
-            # Add direct emissions from this demand
-            idx = np.argwhere(lca_obj.demand_array)[0][-1]
-            direct = (
-                lca_obj.characterization_matrix[:, idx].T
-                * lca_obj.biosphere_matrix
-                * lca_obj.demand_array
-            ).sum()
-            if abs(direct) >= abs(total_score * 1e-4):
-                results.append((direct, amount, activity))
+
+        # Add direct emissions from this demand
+        idx = np.argwhere(lca_obj.demand_array)[0][-1]
+        direct = (
+            lca_obj.characterization_matrix[:, idx].T
+            * lca_obj.biosphere_matrix
+            * lca_obj.demand_array
+        ).sum()
+        if abs(direct) >= abs(total_score * 1e-4):
+            results.append((direct, amount, activity))
 
     for exc in activity.technosphere():
         _, cache = find_leaves(
@@ -89,9 +89,11 @@ def find_leaves(
 
 
 def group_leaves(leaves):
-    """Group elements in ``leaves`` by their `CPC (Central Product Classification) <https://unstats.un.org/unsd/classifications/Econ/cpc>`__ code.
+    """Group elements in ``leaves`` by their `CPC (Central Product Classification)
+    <https://unstats.un.org/unsd/classifications/Econ/cpc>`__ code.
 
-    Returns a list of ``(fraction of total impact, specific impact, amount, Activity instance)`` tuples.
+    Returns a list of ``(fraction of total impact, specific impact, amount,
+    Activity instance)`` tuples.
     """
     results = {}
 
@@ -123,16 +125,20 @@ def compare_activities_by_grouped_leaves(
     str_length=50,
     cache=None,
 ):
-    """Compare activities by the impact of their different inputs, aggregated by the product classification of those inputs.
+    """
+    Compare activities by the impact of their different inputs, aggregated
+    by the product classification of those inputs.
 
     Args:
         activities: list of ``Activity`` instances.
         lcia_method: tuple. LCIA method to use when traversing supply chain graph.
-        mode: str. If "relative" (default), results are returned as a fraction of total input. Otherwise, results are absolute impact per input exchange.
+        mode: str. If "relative" (default), results are returned as a fraction of total input.
+        Otherwise, results are absolute impact per input exchange.
         max_level: int. Maximum level in supply chain to examine.
         cutoff: float. Fraction of total impact to cutoff supply chain graph traversal at.
         output_format: str. See below.
-        str_length; int. If ``output_format`` is ``html``, this controls how many characters each column label can have.
+        str_length; int. If ``output_format`` is ``html``, this controls how many
+        characters each column label can have.
 
     Raises:
         ValueError: ``activities`` is malformed.
