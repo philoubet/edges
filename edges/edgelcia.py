@@ -284,9 +284,9 @@ class EdgeLCIA(LCA):
             }
         )
 
-        self.technosphere_flows = get_flow_matrix_positions({
-            k: v for k, v in self.activity_dict.items()
-        })
+        self.technosphere_flows = get_flow_matrix_positions(
+            {k: v for k, v in self.activity_dict.items()}
+        )
 
         self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
 
