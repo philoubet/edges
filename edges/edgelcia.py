@@ -327,10 +327,10 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
-        def match_with_operator(flow, lookup, required_fields):
+        def match_with_operator(flow_to_match: dict, lookup: dict, required_fields: set) -> list:
             """
             Match a flow against a lookup dictionary considering the operator.
-            :param flow: The flow to match.
+            :param flow_to_match: The flow to match.
             :param lookup: The lookup dictionary.
             :param required_fields: The required fields for matching.
             :return: A list of matching positions.
@@ -339,9 +339,9 @@ class EdgeLCIA(LCA):
             for key, positions in lookup.items():
                 if all(
                     match_operator(
-                        value=flow.get(k),
+                        value=flow_to_match.get(k),
                         target=v,
-                        operator=flow.get("operator", "equals"),
+                        operator=flow_to_match.get("operator", "equals"),
                     )
                     for (k, v) in key
                     if k in required_fields
@@ -388,11 +388,17 @@ class EdgeLCIA(LCA):
             )
 
         def handle_static_regions(
-            direction, unprocessed_edges, cfs_lookup, unprocessed_locations_cache
-        ):
+            direction: str, unprocessed_edges: list, cfs_lookup: dict, unprocessed_locations_cache: dict
+        ) -> None:
             """
             Handle static regions and update CF data (e.g., RER, GLO, ENTSOE, etc.).
             CFs are obtained by averaging the CFs of the constituents of the region.
+
+            :param direction: The direction of the flow.
+            :param unprocessed_edges: The unprocessed edges.
+            :param cfs_lookup: The lookup dictionary for CFs.
+            :param unprocessed_locations_cache: The cache for unprocessed locations
+            :return: None
             """
             for supplier_idx, consumer_idx in unprocessed_edges:
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
@@ -420,9 +426,14 @@ class EdgeLCIA(LCA):
                             }
                         )
 
-        def handle_dynamic_regions(direction, unprocessed_edges, cfs_lookup):
+        def handle_dynamic_regions(direction: str, unprocessed_edges: list, cfs_lookup: dict) -> None:
             """
             Handle dynamic regions like RoW and RoE and update CF data.
+
+            :param direction: The direction of the flow.
+            :param unprocessed_edges: The unprocessed edges.
+            :param cfs_lookup: The lookup dictionary for CFs.
+            :return: None
             """
             for supplier_idx, consumer_idx in unprocessed_edges:
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
@@ -446,7 +457,8 @@ class EdgeLCIA(LCA):
                         if loc not in ["RoW", "RoE"] and loc in weight
                     ]
 
-                    # constituents are all th candidates in teh World (or in Europe) minus those in other_than_RoW_RoE
+                    # constituents are all the candidates in the World (or in Europe)
+                    # minus those in other_than_RoW_RoE
 
                     if location == "RoW":
                         constituents = list(
@@ -454,7 +466,7 @@ class EdgeLCIA(LCA):
                         )
                     else:
                         # RoE
-                        # redefine other_than_RoW_RoE to limit to EU candiates
+                        # redefine other_than_RoW_RoE to limit to EU candidates
                         other_than_RoW_RoE = [
                             loc for loc in other_than_RoW_RoE if geo.contained("RER")
                         ]
@@ -683,7 +695,7 @@ class EdgeLCIA(LCA):
                 )
             print(table)
 
-    def fill_in_lcia_matrix(self):
+    def fill_in_lcia_matrix(self) -> None:
         """
         Translate the data to indices in the inventory matrix.
         """
@@ -706,7 +718,7 @@ class EdgeLCIA(LCA):
 
         self.characterization_matrix = self.characterization_matrix.tocsr()
 
-    def lcia_calculation(self):
+    def lcia_calculation(self) -> None:
         """
         Calculate the LCIA score.
         """
@@ -727,7 +739,7 @@ class EdgeLCIA(LCA):
                 f"{len(self.ignored_locations)} locations were ignored. Check .ignored_locations attribute."
             )
 
-    def generate_cf_table(self):
+    def generate_cf_table(self) -> pd.DataFrame:
         """
         Generate a pandas DataFrame with the characterization factors,
         from self.characterization_matrix.
