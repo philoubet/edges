@@ -5,38 +5,65 @@ import numpy as np
 import bw2data, bw2io
 
 # Assuming SpatialLCA and related functions are in a module named spatiallcia
-from edges.edgelcia import EdgeLCIA, initialize_lcia_matrix, preprocess_flows, compute_average_cf
+from edges.edgelcia import (
+    EdgeLCIA,
+    initialize_lcia_matrix,
+    preprocess_flows,
+    compute_average_cf,
+)
+
 
 class TestSpatialLCA(unittest.TestCase):
 
     def setUp(self):
         # Set up mock data for testing
         self.demand = {bw2data.Database("Mobility example").random(): 1.0}
-        self.method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
+        self.method = ("AWARE 1.2c", "Country", "unspecified", "yearly")
         self.weight = "population"
         self.lca = EdgeLCIA(self.demand, method=self.method, lcia_weight=self.weight)
 
         # Mock data for testing
         self.lca.technosphere_flows = [
-            {"name": "flow1", "reference product": "product1", "location": "US", "position": 0},
-            {"name": "flow2", "reference product": "product2", "location": "EU", "position": 1},
+            {
+                "name": "flow1",
+                "reference product": "product1",
+                "location": "US",
+                "position": 0,
+            },
+            {
+                "name": "flow2",
+                "reference product": "product2",
+                "location": "EU",
+                "position": 1,
+            },
         ]
         self.lca.biosphere_flows = [
-            {"name": "flow3", "reference product": "product3", "location": "CN", "position": 2},
+            {
+                "name": "flow3",
+                "reference product": "product3",
+                "location": "CN",
+                "position": 2,
+            },
         ]
 
         self.lca.cfs_data = [
             {
                 "supplier": {"matrix": "biosphere", "location": "CN"},
-                "consumer": {"matrix": "technosphere", "location": "US", "population": 300},
+                "consumer": {
+                    "matrix": "technosphere",
+                    "location": "US",
+                    "population": 300,
+                },
                 "value": 1.5,
             }
         ]
 
-
     def test_initialization(self):
         # Test if the SpatialLCA object is initialized correctly
-        self.assertEqual(np.array(list(self.lca.demand.values())).sum(), np.array(list(self.demand.values())).sum())
+        self.assertEqual(
+            np.array(list(self.lca.demand.values())).sum(),
+            np.array(list(self.demand.values())).sum(),
+        )
         self.assertEqual(self.lca.method, self.method)
         self.assertEqual(self.lca.weight, "population")
 
@@ -63,7 +90,9 @@ class TestSpatialLCA(unittest.TestCase):
             "EU": [{"supplier": {"matrix": "technosphere"}, "value": 2.0}],
         }
 
-        result = compute_average_cf(constituents, supplier_info, weight, cfs_lookup, region="global")
+        result = compute_average_cf(
+            constituents, supplier_info, weight, cfs_lookup, region="global"
+        )
         self.assertAlmostEqual(result, 1.4, places=1)
 
 
