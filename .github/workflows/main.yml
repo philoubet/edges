@@ -69,12 +69,11 @@ jobs:
           pip install -r requirements.txt --upgrade pip
           pip install pytest
           pip install pytest-instafail
-          
+          pip install -e . --verbose
 
       - name: Run tests
         run: |
           pytest
-
 
   Pypi:
     runs-on: ubuntu-latest
