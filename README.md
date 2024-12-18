@@ -99,6 +99,23 @@ locations included in the region based on the activities in the LCA database.
 The weighted average of the characterization factors is then computed based on the 
 activities' locations.
 
+## How It Works
+
+1. **Off-Diagonal Targeting**:
+   - The library identifies specific exchanges between suppliers and consumers in the technosphere (\( \mathbf{A} \)).
+   - Characterization factors are applied selectively based on these relationships, introducing off-diagonal terms in \( \mathbf{C} \).
+   - For example, an activity in Region A using resources from Region B can have a distinct characterization factor that reflects the inter-regional transfer's environmental consequences.
+
+2. **Conditional Characterization**:
+   - The characterization factors are conditioned on the **location** (or other attributes) of the activities.
+   - For instance, water scarcity impacts might depend on both the supplier's and consumer's geographical context, assigning higher weights to regions with water stress.
+
+3. **Matrix Adjustment**:
+   - The enriched \( \mathbf{C} \) matrix now accounts for interactions between different regions and flows. For example:
+     - Diagonal elements (\( C_{ii} \)) still represent traditional characterization factors for direct flows.
+     - Off-diagonal elements (\( C_{ij} \), \( i \neq j \)) capture interdependencies, such as the environmental cost of resource transport or upstream emissions.
+
+
 ## Contributing
 Contributions are welcome! Please follow these steps to contribute:
 
