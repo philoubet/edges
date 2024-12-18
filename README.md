@@ -5,23 +5,24 @@
 ``edges`` is a Python Library for exchange-based Impact Assessment in 
 Life Cycle Analysis (LCA) for the ``brightway2`` LCA framework.
 
-The *edges* Python library introduces an innovative approach to the application 
-of characterization factors during the impact assessment phase of Life Cycle 
-Assessment (LCA). Unlike traditional impact assessment methods that apply 
-characterization factors (CF) to *nodes* (e.g., processes like `Water, from well` in the 
-``brightway2`` ecosystem, which is assigned a specific CF), ``edges`` leverages on the *edges* between *nodes* 
-(or exchanges between processes) to condition the CF to apply.  In a nutshell, ``edges`` introduces specific values 
-in the *characterization matrix*, determined by the context of the edge/exchange.
 
-*Edges* represent the relationships or exchanges between *nodes*, allowing ``edges`` 
-to leverage contextual information such as the attributes of both suppliers 
-and consumers (e.g., location, ISIC classification, amount exchanged, etc.). 
-This approach enables a more nuanced and flexible characterization 
-of impacts, incorporating additional parameters such as the geographic location 
-of the consumer or the magnitude of the exchanged flow. 
+The ``edges`` Python library offers a novel approach to applying characterization factors 
+(CFs) during the impact assessment phase of Life Cycle Assessment (LCA). 
+Unlike conventional methods that uniformly assign CFs to *nodes* (e.g., processes 
+like ``Water, from well`` in the brightway2 ecosystem), ``edges`` shifts the focus to the 
+*edges*—the *exchanges* or relationships between *nodes*. This allows CFs to be conditioned 
+based on the specific context of each *exchange*. Essentially, ``edges`` introduces unique 
+values in the characterization matrix tailored to the characteristics of each *edge*.
 
-In addition, ``edges`` calculation weighted CF for static (e.g., RER) and 
-dynamic (e.g., RoW) regions.
+By focusing on *edges*, the library incorporates contextual information such as the 
+attributes of both the *supplier* and the *consumer* (e.g., geographic location, ISIC 
+classification, amount exchanged, etc.). This enables a more detailed and flexible 
+impact characterization, accommodating parameters like the location of the consumer 
+and the magnitude of the exchange.
+
+Furthermore, ``edges`` supports the calculation of weighted CFs for both static regions 
+(e.g., RER) and dynamic regions (e.g., RoW), enhancing its ability to model complex 
+and region-specific scenarios.
 
 ## Features
 
