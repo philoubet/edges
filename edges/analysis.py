@@ -3,17 +3,17 @@ Module copied from bw2analyzer.comparisons to allow for custom modifications.
 https://docs.brightway.dev/en/legacy/_modules/bw2analyzer/comparisons.html#compare_activities_by_grouped_leaves
 
 """
+
 import pandas as pd
 import operator
 from os.path import commonprefix
 import tabulate
-from bw2analyzer.comparisons import (
-    get_value_for_cpc
-)
+from bw2analyzer.comparisons import get_value_for_cpc
 import bw2data as bd
 import numpy as np
 
 from . import EdgeLCIA
+
 
 def find_leaves(
     activity,
@@ -25,12 +25,13 @@ def find_leaves(
     level=0,
     max_level=3,
     cutoff=2.5e-2,
-    cache=None
+    cache=None,
 ):
     """Traverse the supply chain of an activity to find leaves - places where the impact of that
     component falls below a threshold value.
 
-    Returns a list of ``(impact of this activity, amount consumed, Activity instance)`` tuples."""
+    Returns a list of ``(impact of this activity, amount consumed, Activity instance)`` tuples.
+    """
     first_level = results is None
 
     activity = bd.get_activity(activity)
@@ -63,9 +64,9 @@ def find_leaves(
             # Add direct emissions from this demand
             idx = np.argwhere(lca_obj.demand_array)[0][-1]
             direct = (
-                    lca_obj.characterization_matrix[:, idx].T
-                    * lca_obj.biosphere_matrix
-                    * lca_obj.demand_array
+                lca_obj.characterization_matrix[:, idx].T
+                * lca_obj.biosphere_matrix
+                * lca_obj.demand_array
             ).sum()
             if abs(direct) >= abs(total_score * 1e-4):
                 results.append((direct, amount, activity))
@@ -81,15 +82,17 @@ def find_leaves(
             level=level + 1,
             max_level=max_level,
             cutoff=cutoff,
-            cache=cache
+            cache=cache,
         )
 
     return sorted(results, reverse=True), cache
 
+
 def group_leaves(leaves):
     """Group elements in ``leaves`` by their `CPC (Central Product Classification) <https://unstats.un.org/unsd/classifications/Econ/cpc>`__ code.
 
-    Returns a list of ``(fraction of total impact, specific impact, amount, Activity instance)`` tuples."""
+    Returns a list of ``(fraction of total impact, specific impact, amount, Activity instance)`` tuples.
+    """
     results = {}
 
     for leaf in leaves:
@@ -100,6 +103,7 @@ def group_leaves(leaves):
 
     return sorted([v.tolist() + [k] for k, v in results.items()], reverse=True)
 
+
 def get_isic(activity):
     try:
         return next(
@@ -107,6 +111,7 @@ def get_isic(activity):
         )
     except StopIteration:
         return
+
 
 def compare_activities_by_grouped_leaves(
     activities,
@@ -116,7 +121,7 @@ def compare_activities_by_grouped_leaves(
     cutoff=7.5e-3,
     output_format="list",
     str_length=50,
-    cache=None
+    cache=None,
 ):
     """Compare activities by the impact of their different inputs, aggregated by the product classification of those inputs.
 
@@ -157,14 +162,12 @@ def compare_activities_by_grouped_leaves(
             max_level=max_level,
             cutoff=cutoff,
             lca_obj=lca,
-            cache=cache
+            cache=cache,
         )
 
         grouped_leaves = group_leaves(leaves)
 
-        objs.append(
-            grouped_leaves
-        )
+        objs.append(grouped_leaves)
 
     sorted_keys = sorted(
         [
@@ -213,9 +216,9 @@ def compare_activities_by_grouped_leaves(
             ]
             + [
                 (
-                        lca.characterization_matrix[:, idx].T
-                        * lca.biosphere_matrix
-                        * lca.demand_array
+                    lca.characterization_matrix[:, idx].T
+                    * lca.biosphere_matrix
+                    * lca.demand_array
                 ).sum()
             ]
             + [get_value_for_cpc(lst, key) for _, key in sorted_keys]

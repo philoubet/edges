@@ -19,5 +19,3 @@ from bw2data.backends import Node
 from bw2data.backends.schema import ActivityDataset as AD
 from bw2data.backends.schema import get_id
 from bw2data.errors import Brightway2Project, UnknownObject
-
-
