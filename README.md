@@ -86,6 +86,20 @@ LCA.generate_cf_table()
 precise country-specific data for environmental modeling. Refer to the AWARE 
 website [https://wulca-waterlca.org/](https://wulca-waterlca.org/) for more information.
 
+If you use the AWARE method, please cite the following publication:
+
+```bibtex
+@article{boulay2018aware,
+  title={The WULCA consensus characterization model for water scarcity footprints: assessing impacts of water consumption based on available water remaining (AWARE).},
+  author={Anne-Marie Boulay, Jane Bare, Lorenzo Benini, Markus Berger, Michael J. Lathuillière, Alessandro Manzardo, Manuele Margni, Masaharu Motoshita, Montserrat Núñez, Amandine Valerie Pastor, Bradley Ridoutt, Taikan Oki, Sebastien Worbe & Stephan Pfister },
+  journal={Int J Life Cycle Assess},
+  volume={23},
+  pages={368–378},
+  year={2018},
+  publisher={Springer}
+}
+```
+
 ## Methodology
 
 1. ``edges`` introduces edge-specific characterization factors
