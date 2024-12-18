@@ -2,11 +2,17 @@ name: Github Action
 on: [push, pull_request]
 
 jobs:
-  lint:
+  clean:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: psf/black@stable
+      - uses: actions/checkout@v2
+
+      - name: Black formatting
+        uses: lgeiger/black-action@v1.0.1
+        with:
+          args: "./"
+
 
       - name: Check for modified files
         id: git-check
@@ -28,7 +34,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
 
-    needs: lint
+    needs: clean
 
     steps:
       - uses: actions/checkout@v2

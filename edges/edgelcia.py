@@ -327,7 +327,9 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
-        def match_with_operator(flow_to_match: dict, lookup: dict, required_fields: set) -> list:
+        def match_with_operator(
+            flow_to_match: dict, lookup: dict, required_fields: set
+        ) -> list:
             """
             Match a flow against a lookup dictionary considering the operator.
             :param flow_to_match: The flow to match.
@@ -388,7 +390,10 @@ class EdgeLCIA(LCA):
             )
 
         def handle_static_regions(
-            direction: str, unprocessed_edges: list, cfs_lookup: dict, unprocessed_locations_cache: dict
+            direction: str,
+            unprocessed_edges: list,
+            cfs_lookup: dict,
+            unprocessed_locations_cache: dict,
         ) -> None:
             """
             Handle static regions and update CF data (e.g., RER, GLO, ENTSOE, etc.).
@@ -426,7 +431,9 @@ class EdgeLCIA(LCA):
                             }
                         )
 
-        def handle_dynamic_regions(direction: str, unprocessed_edges: list, cfs_lookup: dict) -> None:
+        def handle_dynamic_regions(
+            direction: str, unprocessed_edges: list, cfs_lookup: dict
+        ) -> None:
             """
             Handle dynamic regions like RoW and RoE and update CF data.
 
