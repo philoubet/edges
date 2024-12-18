@@ -7,10 +7,10 @@ import bw2data, bw2io
 # Assuming SpatialLCA and related functions are in a module named spatiallcia
 from edges.edgelcia import (
     EdgeLCIA,
-    initialize_lcia_matrix,
     preprocess_flows,
     compute_average_cf,
 )
+from edges.utils import initialize_lcia_matrix
 
 
 class TestSpatialLCA(unittest.TestCase):

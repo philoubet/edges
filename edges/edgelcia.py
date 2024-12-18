@@ -4,13 +4,11 @@ impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
 
-import os
 import json
-import yaml
 import numpy as np
 from bw2calc import LCA
 import bw2data
-from scipy.sparse import lil_matrix, coo_matrix
+from scipy.sparse import coo_matrix
 from collections import defaultdict
 from constructive_geometries import Geomatcher
 import logging
@@ -30,6 +28,14 @@ from bw2calc import prepare_lca_inputs, PYPARDISO
 from bw2calc.dictionary_manager import DictionaryManager
 from bw2calc.utils import get_datapackage
 
+from .utils import (
+    format_data,
+    initialize_lcia_matrix,
+    get_flow_matrix_positions,
+    preprocess_cfs,
+    check_database_references,
+)
+
 # delete the logs
 with open("edgelcia.log", "w"):
     pass
@@ -46,134 +52,6 @@ logger = logging.getLogger(__name__)
 
 
 geo = Geomatcher()
-
-
-def format_method_name(name: str) -> tuple:
-    """
-    Format the name of the method.
-    :param name: The name of the method.
-    :return: A tuple with the name of the method.
-    """
-    return tuple(name.split("_"))
-
-
-def get_available_methods() -> list:
-    """
-    Display the available impact assessment methods by reading
-     file names under `data` directory
-    that ends with ".json" extension.
-    :return: A list of available impact assessment methods.
-    """
-    return sorted(
-        [
-            format_method_name(f.replace(".json", ""))
-            for f in os.listdir(DATA_DIR)
-            if f.endswith(".json")
-        ]
-    )
-
-
-def check_method(impact_method: str) -> str:
-    """
-    Check if the impact method is available.
-    :param impact_method: The impact method to check.
-    :return: The impact method if it is available.
-    """
-    if impact_method not in get_available_methods():
-        raise ValueError(f"Impact method not available: {impact_method}")
-    return impact_method
-
-
-def format_data(data: dict) -> dict:
-    """
-    Format the data for the LCIA method.
-    :param data: The data for the LCIA method.
-    :return: The formatted data for the LCIA method.
-    """
-
-    for cf in data:
-        for category in ["supplier", "consumer"]:
-            for field, value in cf.get(category, {}).items():
-                if field == "categories":
-                    cf[category][field] = tuple(value)
-
-    return add_population_and_gdp_data(data)
-
-
-def add_population_and_gdp_data(data: dict) -> dict:
-    """
-    Add population and GDP data to the LCIA method.
-    :param data: The data for the LCIA method.
-    :return: The data for the LCIA method with population and GDP data.
-    """
-    # load population data from data/population.yaml
-    with open(DATA_DIR / "metadata" / "population.yaml", "r") as f:
-        population_data = yaml.safe_load(f)
-
-    # load GDP data from data/gdp.yaml
-    with open(DATA_DIR / "metadata" / "gdp.yaml", "r") as f:
-        gdp_data = yaml.safe_load(f)
-
-    # add to the data dictionary
-    for cf in data:
-        for category in ["supplier", "consumer"]:
-            if "location" in cf[category]:
-                k = cf[category]["location"]
-                cf[category]["population"] = population_data.get(k, 0)
-                cf[category]["gdp"] = gdp_data.get(k, 0)
-
-    return data
-
-
-def initialize_lcia_matrix(lca: LCA, type="biosphere") -> lil_matrix:
-    """
-    Initialize the LCIA matrix. It is a sparse matrix with the
-    dimensions of the `inventory` matrix of the LCA object.
-    :param lca: The LCA object.
-    :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
-    """
-    if type == "biosphere":
-        return lil_matrix(lca.inventory.shape)
-    else:
-        return lil_matrix(lca.technosphere_matrix.shape)
-
-
-def get_flow_matrix_positions(mapping: dict) -> list:
-    """
-    Retrieve information about the flows in the given matrix.
-    :param mapping: The mapping of the flows.
-    :return: A list with the positions of the flows.
-    """
-    flows = []
-    for k, v in mapping.items():
-        flow = bw2data.get_activity(k)
-        flows.append(
-            {
-                "name": flow["name"],
-                "reference product": flow.get("reference product"),
-                "categories": flow.get("categories"),
-                "unit": flow.get("unit"),
-                "location": flow.get("location"),
-                "classifications": flow.get("classifications"),
-                "type": flow.get("type"),
-                "position": v,
-            }
-        )
-    return flows
-
-
-def preprocess_cfs(cfs: list) -> dict:
-    """
-    Preprocess the characterization factors into a dictionary for faster lookup.
-    :param cfs: List of characterization factors.
-    :return: A dictionary indexed by consumer location.
-    """
-    cfs_lookup = defaultdict(list)
-    for cf in cfs:
-        location = cf["consumer"].get("location")
-        if location:
-            cfs_lookup[location].append(cf)
-    return cfs_lookup
 
 
 def compute_average_cf(
@@ -210,9 +88,8 @@ def compute_average_cf(
 
     # Pre-filter supplier keys for filtering
     supplier_keys = supplier_info.keys()
-    supplier_tuple = tuple(supplier_info[k] for k in supplier_keys)
 
-    def match_supplier(cf, supplier_info):
+    def match_supplier(cf: dict) -> bool:
         """
         Match a supplier based on operator logic.
         """
@@ -231,15 +108,15 @@ def compute_average_cf(
         loc_cfs = cfs_lookup.get(loc, [])
 
         # Filter CFs based on supplier info using the operator logic
-        filtered_cfs = [
-            cf["value"] for cf in loc_cfs if match_supplier(cf, supplier_info)
-        ]
+        filtered_cfs = [cf["value"] for cf in loc_cfs if match_supplier(cf)]
 
         value += share * sum(filtered_cfs)
 
     # Log if shares don't sum to 1 due to precision issues
     if not np.isclose(shares.sum(), 1):
-        logger.info(f"Shares for {region} do not sum to 1 but {shares.sum()}: {shares}")
+        logger.info(
+            f"Shares for {region} do not sum to 1 " f"but {shares.sum()}: {shares}"
+        )
 
     return value
 
@@ -249,10 +126,11 @@ def find_region_constituents(
 ) -> float:
     """
     Find the constituents of the region.
-    :param regions: The regions.
-    :param cfs: The characterization factors.
-    :param weighting: The weighting to use.
-    :return: The new characterization factors for the region
+    :param region: The region to evaluate.
+    :param supplier_info: Information about the supplier.
+    :param cfs: Lookup dictionary for characterization factors.
+    :param weight: Weights for the constituents.
+    :return: The new CF value.
     """
 
     _ = lambda x: x if isinstance(x, str) else x[-1]
@@ -275,7 +153,7 @@ def find_region_constituents(
     return new_cfs
 
 
-def preprocess_flows(flows_list, mandatory_fields):
+def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     """
     Preprocess flows into a lookup dictionary.
     :param flows_list: List of flows.
@@ -291,7 +169,7 @@ def preprocess_flows(flows_list, mandatory_fields):
     return lookup
 
 
-def match_operator(value, target, operator):
+def match_operator(value: str, target: str, operator: str) -> bool:
     """
     Match a value against a target using the specified operator.
     :param value: The value to match.
@@ -307,26 +185,6 @@ def match_operator(value, target, operator):
         return target.startswith(value)
     else:
         raise ValueError(f"Unsupported operator: {operator}")
-
-
-def check_database_references(cfs, tech_flows, bio_flows) -> list:
-
-    locations_available = set([x["location"] for x in tech_flows])
-    unavailable_locations = []
-
-    for cf in cfs:
-        if "location" in cf["consumer"]:
-            location = cf["consumer"]["location"]
-            if location not in locations_available:
-                unavailable_locations.append(location)
-
-    print("Warning: some locations are not found in the database. Check logs.")
-    logger.info(
-        f"Method locations not found in the database: {set(unavailable_locations)}"
-    )
-
-    # remove the cfs with locations not found in the database
-    return [cf for cf in cfs if cf["consumer"].get("location") in locations_available]
 
 
 class EdgeLCIA(LCA):
@@ -834,7 +692,7 @@ class EdgeLCIA(LCA):
             self.characterization_matrix = initialize_lcia_matrix(self)
         else:
             self.characterization_matrix = initialize_lcia_matrix(
-                self, type="technosphere"
+                self, matrix_type="technosphere"
             )
 
         self.identify_exchanges()

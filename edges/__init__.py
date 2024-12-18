@@ -1,5 +1,6 @@
-__all__ = ("EdgeLCIA", "get_available_methods")
+__all__ = ("EdgeLCIA",)
 
 __version__ = "0.1.0"
 
-from .edgelcia import EdgeLCIA, get_available_methods
+from .edgelcia import EdgeLCIA
+from .utils import get_available_methods
