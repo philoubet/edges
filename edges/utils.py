@@ -23,6 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def format_method_name(name: str) -> tuple:
     """
     Format the name of the method.

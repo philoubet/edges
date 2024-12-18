@@ -60,7 +60,6 @@ def find_leaves(
 
             return results, cache
 
-
         # Add direct emissions from this demand
         idx = np.argwhere(lca_obj.demand_array)[0][-1]
         direct = (

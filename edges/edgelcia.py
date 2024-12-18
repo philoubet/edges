@@ -116,8 +116,10 @@ def compute_average_cf(
 
     return value
 
+
 def get_str(x):
     return x if isinstance(x, str) else x[-1]
+
 
 def find_region_constituents(
     region: str, supplier_info: dict, cfs: dict, weight: dict
@@ -132,7 +134,9 @@ def find_region_constituents(
     """
 
     try:
-        constituents = [get_str(g) for g in geo.contained(region) if get_str(g) in weight]
+        constituents = [
+            get_str(g) for g in geo.contained(region) if get_str(g) in weight
+        ]
     except KeyError:
         logger.info(f"Region: {region}. No geometry found.")
         return 0
@@ -280,9 +284,7 @@ class EdgeLCIA(LCA):
             }
         )
 
-        self.technosphere_flows = get_flow_matrix_positions(
-            self.activity_dict.items()
-        )
+        self.technosphere_flows = get_flow_matrix_positions(self.activity_dict.items())
 
         self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
 
