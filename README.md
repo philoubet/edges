@@ -20,6 +20,9 @@ This approach enables a more nuanced and flexible characterization
 of impacts, incorporating additional parameters such as the geographic location 
 of the consumer or the magnitude of the exchanged flow. 
 
+In addition, ``edges`` calculation weighted CF for static (e.g., RER) and 
+dynamic (e.g., RoW) regions.
+
 ## Features
 
 - **National characterization factors** for water-related impacts.
@@ -37,6 +40,8 @@ pip install git+https://github.com/romainsacchi/edges.git
 ```
 
 ## Getting Started
+
+Check out the [examples' notebook](https://github.com/romainsacchi/edges/blob/main/examples/examples.ipynb).
 
 ### Check available methods from ``edges``
 
@@ -95,9 +100,9 @@ countries included in the region, based either on population or GDP. The weighti
 key can be selected by the user (weighting by population size by default).
 
 3. For relative regions (e.g., RoW, RoE, etc.), ``edges`` dynamically defines the 
-locations included in the region based on the activities in the LCA database. 
-The weighted average of the characterization factors is then computed based on the 
-activities' locations.
+locations included in the region based on the mathing activities in the LCA database. 
+The weighted average of the characterization factor of the geographies 
+containd in the region is then computed accordingly.
 
 ### How It Works
 
@@ -111,9 +116,8 @@ activities' locations.
    - For instance, water scarcity impacts might depend on both the supplier's and consumer's geographical context, assigning higher weights to regions with water stress.
 
 3. **Matrix Adjustment**:
-   - The enriched C matrix now accounts for interactions between different regions and flows. For example:
-     - Diagonal elements (C_ii) still represent traditional characterization factors for direct flows.
-     - Off-diagonal elements (C_ij, where i ≠ j) capture interdependencies, such as the environmental cost of resource transport or upstream emissions.
+   - The enriched C matrix now accounts for interactions between different regions and flows. 
+   - Off-diagonal elements (C_ij, where i ≠ j) capture interdependencies, such as the environmental cost of resource transport or upstream emissions.
 
 
 ## Contributing
