@@ -37,7 +37,7 @@ and region-specific scenarios.
 You can install the library using pip:
 
 ```bash
-pip install git+https://github.com/romainsacchi/edges.git
+pip install git+https://github.com/Laboratory-for-Energy-Systems-Analysis/edges.git
 ```
 
 ## Getting Started
