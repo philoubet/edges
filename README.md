@@ -3,7 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/edges.svg)](https://badge.fury.io/py/csc-brightway)
 
 ``edges`` is a Python Library for exchange-based Impact Assessment in 
-Life Cycle Analysis (LCA) for the ``brightway2`` LCA framework.
+Life Cycle Analysis (LCA) for the ``brightway2``/``brightway25`` LCA framework.
 
 
 The ``edges`` Python library offers a novel approach to applying characterization factors 
