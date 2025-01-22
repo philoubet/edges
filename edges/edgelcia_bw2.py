@@ -6,22 +6,37 @@ LCIA class.
 
 from collections import defaultdict
 import logging
-from pathlib import Path
 import json
-from typing import Iterable, Optional, Union
-from fsspec import AbstractFileSystem
+from typing import Iterable, Optional
 import numpy as np
 
 from scipy.sparse import coo_matrix
 from constructive_geometries import Geomatcher
 import pandas as pd
 from prettytable import PrettyTable
-import bw_processing as bwp
 from bw2calc import LCA
 import bw2data
-from bw2calc import prepare_lca_inputs, PYPARDISO
-from bw2calc.dictionary_manager import DictionaryManager
-from bw2calc.utils import get_datapackage
+from bw2calc.utils import clean_databases, wrap_functional_unit, get_filepaths
+import warnings
+
+try:
+    from pypardiso import factorized, spsolve
+except ImportError:
+    from scipy.sparse.linalg import factorized, spsolve
+
+    from scipy.sparse.linalg._dsolve import linsolve
+
+    if not linsolve.useUmfpack:
+        logging.warn("""
+        Did not findPypardisio or Umfpack. Matrix computation may be very slow.
+
+        If you are on an Intel architecture, please install pypardiso as explained in the docs :
+        https://docs.brightway.dev/en/latest/content/installation/index.html
+
+        > pip install pypardiso
+        or 
+        > conda install pypardiso
+        """)
 
 from .utils import (
     format_data,
@@ -31,6 +46,19 @@ from .utils import (
     check_database_references,
 )
 from .filesystem_constants import DATA_DIR
+
+try:
+    import pandas
+except ImportError:
+    pandas = None
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+try:
+    from presamples import PackagesDataLoader
+except ImportError:
+    PackagesDataLoader = None
 
 # delete the logs
 with open("edgelcia.log", "w", encoding="utf-8"):
@@ -186,6 +214,7 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     raise ValueError(f"Unsupported operator: {operator}")
 
 
+
 class EdgeLCIA(LCA):
     """
     Subclass of the `bw2io.lca.LCA` class that implements the calculation
@@ -193,37 +222,47 @@ class EdgeLCIA(LCA):
     """
 
     def __init__(
-        self,
-        demand: dict,
-        # Brightway 2 calling convention
-        method: Optional[tuple] = None,
-        weighting: Optional[str] = None,
-        lcia_weight: Optional[str] = "population",
-        normalization: Optional[str] = None,
-        # Brightway 2.5 calling convention
-        data_objs: Optional[
-            Iterable[Union[Path, AbstractFileSystem, bwp.DatapackageBase]]
-        ] = None,
-        remapping_dicts: Optional[Iterable[dict]] = None,
-        log_config: Optional[dict] = None,
-        seed_override: Optional[int] = None,
-        use_arrays: Optional[bool] = False,
-        use_distributions: Optional[bool] = False,
-        selective_use: Optional[dict] = False,
+            self,
+            demand,
+            method=None,
+            weighting=None,
+            normalization=None,
+            database_filepath=None,
+            presamples=None,
+            seed=None,
+            override_presamples_seed=False,
+            lcia_weight = "population",
     ):
-        """
-        Initialize the SpatialLCA class, ensuring `method` is not passed to
-        `prepare_lca_inputs` while still being available in the class.
-        """
+        """Create a new LCA calculation.
 
-        self.reversed_biosphere = None
-        self.reversed_activity = None
-        self.characterization_matrix = None
+        Args:
+            * *demand* (dict): The demand or functional unit. Needs to be a dictionary to indicate amounts, e.g. ``{("my database", "my process"): 2.5}``.
+            * *method* (tuple, optional): LCIA Method tuple, e.g. ``("My", "great", "LCIA", "method")``. Can be omitted if only interested in calculating the life cycle inventory.
+
+        Returns:
+            A new LCA object
+
+        """
+        if not isinstance(demand, Mapping):
+            raise ValueError("Demand must be a dictionary")
+        for key in demand:
+            if not key:
+                raise ValueError("Invalid demand dictionary")
+
+
+        clean_databases()
+        self._fixed = False
+
+        self.demand = demand
+        self.method = method
+        self.normalization = normalization
+        self.weighting = weighting
+        self.database_filepath = database_filepath
+        self.seed = seed
         self.position_to_technosphere_flows_lookup = None
         self.technosphere_flows_lookup = None
         self.technosphere_edges = None
         self.technosphere_flow_matrix = None
-        self.cfs_data = None
         self.biosphere_edges = None
         self.technosphere_flows = None
         self.biosphere_flows = None
@@ -231,28 +270,32 @@ class EdgeLCIA(LCA):
         self.biosphere_characterization_matrix = None
         self.ignored_flows = set()
         self.ignored_locations = set()
-        self.method = method  # Store the method argument in the instance
+        self.cfs_data = None
         self.weight = lcia_weight
 
-        if not data_objs:  # If `data_objs` is not provided
-            demand, self.packages, remapping_dicts = prepare_lca_inputs(
-                demand=demand,
-                weighting=weighting,
-                normalization=normalization,
+        if presamples and PackagesDataLoader is None:
+            warnings.warn("Skipping presamples; `presamples` not installed")
+            self.presamples = None
+        elif presamples:
+            # Iterating over a `Campaign` object will also return the presample filepaths
+            self.presamples = PackagesDataLoader(
+                dirpaths=presamples,
+                seed=self.seed if override_presamples_seed else None,
+                lca=self
             )
-            self.method = method
-            self.weighting = weighting
-            self.normalization = normalization
         else:
-            self.packages = [get_datapackage(obj) for obj in data_objs]
+            self.presamples = None
 
-        self.dicts = DictionaryManager()
-        self.demand = demand
-        self.use_arrays = use_arrays
-        self.use_distributions = use_distributions
-        self.selective_use = selective_use or {}
-        self.remapping_dicts = remapping_dicts or {}
-        self.seed_override = seed_override
+        self.database_filepath, _, _, _ = self.get_array_filepaths()
+
+    def get_array_filepaths(self):
+        """Use utility functions to get all array filepaths"""
+        return (
+            get_filepaths(self.demand, "demand"),
+            None,
+            None,
+            None,
+        )
 
     def lci(self, demand: Optional[dict] = None, factorize: bool = False) -> None:
 
