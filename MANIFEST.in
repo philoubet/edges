@@ -3,4 +3,5 @@ include edges/data/*.csv
 include edges/data/*.json
 include edges/data/*.yml
 include edges/data/*.yaml
+include edges/data/metadata/*.yaml
 
