@@ -27,7 +27,8 @@ except ImportError:
     from scipy.sparse.linalg._dsolve import linsolve
 
     if not linsolve.useUmfpack:
-        logging.warn("""
+        logging.warn(
+            """
         Did not findPypardisio or Umfpack. Matrix computation may be very slow.
 
         If you are on an Intel architecture, please install pypardiso as explained in the docs :
@@ -36,7 +37,8 @@ except ImportError:
         > pip install pypardiso
         or 
         > conda install pypardiso
-        """)
+        """
+        )
 
 from .utils import (
     format_data,
@@ -214,7 +216,6 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     raise ValueError(f"Unsupported operator: {operator}")
 
 
-
 class EdgeLCIA(LCA):
     """
     Subclass of the `bw2io.lca.LCA` class that implements the calculation
@@ -222,16 +223,16 @@ class EdgeLCIA(LCA):
     """
 
     def __init__(
-            self,
-            demand,
-            method=None,
-            weighting=None,
-            normalization=None,
-            database_filepath=None,
-            presamples=None,
-            seed=None,
-            override_presamples_seed=False,
-            lcia_weight = "population",
+        self,
+        demand,
+        method=None,
+        weighting=None,
+        normalization=None,
+        database_filepath=None,
+        presamples=None,
+        seed=None,
+        override_presamples_seed=False,
+        lcia_weight="population",
     ):
         """Create a new LCA calculation.
 
@@ -248,7 +249,6 @@ class EdgeLCIA(LCA):
         for key in demand:
             if not key:
                 raise ValueError("Invalid demand dictionary")
-
 
         clean_databases()
         self._fixed = False
@@ -281,7 +281,7 @@ class EdgeLCIA(LCA):
             self.presamples = PackagesDataLoader(
                 dirpaths=presamples,
                 seed=self.seed if override_presamples_seed else None,
-                lca=self
+                lca=self,
             )
         else:
             self.presamples = None
