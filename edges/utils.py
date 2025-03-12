@@ -86,7 +86,9 @@ def add_population_and_gdp_data(data: list, weight: str) -> list:
     # load population data from data/population.yaml
 
     if weight == "population":
-        with open(DATA_DIR / "metadata" / "population.yaml", "r", encoding="utf-8") as f:
+        with open(
+            DATA_DIR / "metadata" / "population.yaml", "r", encoding="utf-8"
+        ) as f:
             weighting_data = yaml.safe_load(f)
 
     # load GDP data from data/gdp.yaml
