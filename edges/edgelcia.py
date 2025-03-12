@@ -322,7 +322,7 @@ class EdgeLCIA(LCA):
             raise FileNotFoundError(f"Data file not found: {data_file}")
 
         with open(data_file, "r", encoding="utf-8") as f:
-            self.cfs_data = format_data(json.load(f))
+            self.cfs_data = format_data(data=json.load(f), weight=self.weight)
             self.cfs_data = check_database_references(
                 self.cfs_data, self.technosphere_flows, self.biosphere_flows
             )
@@ -530,7 +530,7 @@ class EdgeLCIA(LCA):
                         self.ignored_locations.add(location)
 
         # Constants for ignored fields
-        IGNORED_FIELDS = {"matrix", "population", "gdp", "operator"}
+        IGNORED_FIELDS = {"matrix", "operator", "weight"}
 
         # Precompute required fields for faster access
         required_supplier_fields = {
@@ -624,7 +624,7 @@ class EdgeLCIA(LCA):
         ]
 
         weight = {
-            i.get("consumer").get("location"): i.get("consumer").get(self.weight)
+            i.get("consumer").get("location"): i.get("consumer").get("weight")
             for i in self.cfs_data
             if i.get("consumer").get("location")
         }

@@ -60,7 +60,7 @@ def check_method(impact_method: str) -> str:
     return impact_method
 
 
-def format_data(data: list) -> list:
+def format_data(data: list, weight: str) -> list:
     """
     Format the data for the LCIA method.
     :param data: The data for the LCIA method.
@@ -73,30 +73,34 @@ def format_data(data: list) -> list:
                 if field == "categories":
                     cf[category][field] = tuple(value)
 
-    return add_population_and_gdp_data(data)
+    return add_population_and_gdp_data(data, weight)
 
 
-def add_population_and_gdp_data(data: list) -> list:
+def add_population_and_gdp_data(data: list, weight: str) -> list:
     """
     Add population and GDP data to the LCIA method.
     :param data: The data for the LCIA method.
+    :param weight: the type of weight to include.
     :return: The data for the LCIA method with population and GDP data.
     """
     # load population data from data/population.yaml
-    with open(DATA_DIR / "metadata" / "population.yaml", "r", encoding="utf-8") as f:
-        population_data = yaml.safe_load(f)
+
+    if weight == "population":
+        with open(DATA_DIR / "metadata" / "population.yaml", "r", encoding="utf-8") as f:
+            weighting_data = yaml.safe_load(f)
 
     # load GDP data from data/gdp.yaml
-    with open(DATA_DIR / "metadata" / "gdp.yaml", "r", encoding="utf-8") as f:
-        gdp_data = yaml.safe_load(f)
+    if weight == "gdp":
+        with open(DATA_DIR / "metadata" / "gdp.yaml", "r", encoding="utf-8") as f:
+            weighting_data = yaml.safe_load(f)
 
     # add to the data dictionary
     for cf in data:
         for category in ["supplier", "consumer"]:
             if "location" in cf[category]:
-                k = cf[category]["location"]
-                cf[category]["population"] = population_data.get(k, 0)
-                cf[category]["gdp"] = gdp_data.get(k, 0)
+                if "weight" not in cf[category]:
+                    k = cf[category]["location"]
+                    cf[category]["weight"] = weighting_data.get(k, 0)
 
     return data
 
