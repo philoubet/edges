@@ -174,7 +174,6 @@ def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> l
             if location not in locations_available:
                 unavailable_locations.append(location)
 
-    print("Warning: some locations are not found in the database. Check logs.")
     logger.info(
         f"Method locations not found in the database: {set(unavailable_locations)}"
     )

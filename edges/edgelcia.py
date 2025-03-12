@@ -144,7 +144,7 @@ def find_region_constituents(
     new_cfs = compute_average_cf(constituents, supplier_info, weight, cfs, region)
 
     if len(constituents) == 0:
-        logger.info(f"Region: {region}. No constituents found.")
+        logger.info(f"Region: {region}. No constituents found: need to compute new CF.")
         constituents = list(weight.keys())
         new_cfs = compute_average_cf(constituents, supplier_info, weight, cfs, region)
 
@@ -216,6 +216,8 @@ class EdgeLCIA(LCA):
         `prepare_lca_inputs` while still being available in the class.
         """
 
+        self.cfs_number = None
+        self.lcia_data_file = None
         self.reversed_biosphere = None
         self.reversed_activity = None
         self.characterization_matrix = None
@@ -316,13 +318,14 @@ class EdgeLCIA(LCA):
         """
         Load the data for the LCIA method.
         """
-        data_file = DATA_DIR / f"{'_'.join(self.method)}.json"
+        self.lcia_data_file = DATA_DIR / f"{'_'.join(self.method)}.json"
 
-        if not data_file.is_file():
-            raise FileNotFoundError(f"Data file not found: {data_file}")
+        if not self.lcia_data_file.is_file():
+            raise FileNotFoundError(f"Data file not found: {self.lcia_data_file}")
 
-        with open(data_file, "r", encoding="utf-8") as f:
+        with open(self.lcia_data_file, "r", encoding="utf-8") as f:
             self.cfs_data = format_data(data=json.load(f), weight=self.weight)
+            self.cfs_number = len(self.cfs_data)
             self.cfs_data = check_database_references(
                 self.cfs_data, self.technosphere_flows, self.biosphere_flows
             )
@@ -510,13 +513,6 @@ class EdgeLCIA(LCA):
                         region=location,
                     )
 
-                    # logger.info(
-                    #     f"Region: {location}. Activity: {name, reference_product} "
-                    #     f"New CF: {new_cf}. "
-                    #     f"Candidates other than Row/RoE: {other_than_RoW_RoE} "
-                    #     f"Constituents: {constituents}"
-                    # )
-
                     if new_cf:
                         self.cfs_data.append(
                             {
@@ -658,6 +654,24 @@ class EdgeLCIA(LCA):
             )
         ]
 
+        self.print_summary_table(
+            unprocessed_biosphere_edges=unprocessed_biosphere_edges,
+            unprocessed_technosphere_edges=unprocessed_technosphere_edges
+        )
+
+
+    def print_summary_table(
+            self,
+            unprocessed_biosphere_edges: list,
+            unprocessed_technosphere_edges: list
+    ):
+        """
+        Build a table that summarize the method name, data file,
+        number of CF, number of CFs used, number of exchanges characterized,
+        number of exchanged for which a CF could not be obtained.
+        """
+
+
         # figure out remaining unprocessed edges for information
         processed_biosphere_edges = {
             f for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])
@@ -667,10 +681,10 @@ class EdgeLCIA(LCA):
         }
 
         unprocessed_biosphere_edges = (
-            set(unprocessed_biosphere_edges) - processed_biosphere_edges
+                set(unprocessed_biosphere_edges) - processed_biosphere_edges
         )
         unprocessed_technosphere_edges = (
-            set(unprocessed_technosphere_edges) - processed_technosphere_edges
+                set(unprocessed_technosphere_edges) - processed_technosphere_edges
         )
 
         if unprocessed_biosphere_edges:
@@ -705,6 +719,26 @@ class EdgeLCIA(LCA):
                     ]
                 )
             print(table)
+
+
+        # build PrettyTable
+        table = PrettyTable()
+        table.header = False
+        rows = []
+        rows.append(["Method name", self.method])
+        rows.append(["Data file", self.lcia_data_file.stem])
+        rows.append(["Number of CFs in method", self.cfs_number])
+        rows.append(["Number of CFs used", len(list(set([x["value"] for x in self.cfs_data])))])
+        rows.append(["Number of exchanges characterized", len(processed_biosphere_edges) + len(processed_technosphere_edges)])
+        rows.append(["Number of exchanges uncharacterized", len(unprocessed_biosphere_edges) + len(unprocessed_technosphere_edges)])
+        if self.ignored_locations:
+            rows.append(["Product system locations ignored", self.ignored_locations])
+
+        for row in rows:
+            table.add_row(row)
+
+        print(table)
+
 
     def fill_in_lcia_matrix(self) -> None:
         """
@@ -745,10 +779,6 @@ class EdgeLCIA(LCA):
                 self.technosphere_flow_matrix
             )
 
-        if self.ignored_locations:
-            print(
-                f"{len(self.ignored_locations)} locations were ignored. Check .ignored_locations attribute."
-            )
 
     def generate_cf_table(self) -> pd.DataFrame:
         """
