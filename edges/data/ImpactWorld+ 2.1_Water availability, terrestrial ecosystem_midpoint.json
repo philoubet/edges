@@ -1,0 +1,2042 @@
+[
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AD",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AE",
+      "matrix": "technosphere"
+    },
+    "value": 0.103
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AF",
+      "matrix": "technosphere"
+    },
+    "value": 0.181
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AFR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0444
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0185
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0602
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AT",
+      "matrix": "technosphere"
+    },
+    "value": 0.00777
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AU",
+      "matrix": "technosphere"
+    },
+    "value": 0.00207
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BD",
+      "matrix": "technosphere"
+    },
+    "value": 0.00171
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BE",
+      "matrix": "technosphere"
+    },
+    "value": 0.0124
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BF",
+      "matrix": "technosphere"
+    },
+    "value": 0.078
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BJ",
+      "matrix": "technosphere"
+    },
+    "value": 0.11
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0339
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0282
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BW",
+      "matrix": "technosphere"
+    },
+    "value": 0.102
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CA",
+      "matrix": "technosphere"
+    },
+    "value": 0.026
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CH",
+      "matrix": "technosphere"
+    },
+    "value": 0.0233
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CL",
+      "matrix": "technosphere"
+    },
+    "value": 0.153
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CM",
+      "matrix": "technosphere"
+    },
+    "value": 0.0265
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CN",
+      "matrix": "technosphere"
+    },
+    "value": 0.0369
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0483
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CPA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0379
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CS",
+      "matrix": "technosphere"
+    },
+    "value": 0.00141
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CU",
+      "matrix": "technosphere"
+    },
+    "value": 0.0222
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.0407
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DE",
+      "matrix": "technosphere"
+    },
+    "value": 0.00754
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DK",
+      "matrix": "technosphere"
+    },
+    "value": 8.89e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0472
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.00037
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EC",
+      "matrix": "technosphere"
+    },
+    "value": 0.00852
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EEU",
+      "matrix": "technosphere"
+    },
+    "value": 0.00338
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EG",
+      "matrix": "technosphere"
+    },
+    "value": 0.00299
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EH",
+      "matrix": "technosphere"
+    },
+    "value": 0.0208
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ER",
+      "matrix": "technosphere"
+    },
+    "value": 0.169
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ES",
+      "matrix": "technosphere"
+    },
+    "value": 0.0249
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ET",
+      "matrix": "technosphere"
+    },
+    "value": 0.000724
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": NaN,
+      "matrix": "technosphere"
+    },
+    "value": 0.0204
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FI",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0159
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FSU",
+      "matrix": "technosphere"
+    },
+    "value": 0.0538
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GB",
+      "matrix": "technosphere"
+    },
+    "value": 0.00436
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GH",
+      "matrix": "technosphere"
+    },
+    "value": 0.198
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GN",
+      "matrix": "technosphere"
+    },
+    "value": 0.164
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GT",
+      "matrix": "technosphere"
+    },
+    "value": 0.00584
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GW",
+      "matrix": "technosphere"
+    },
+    "value": 0.136
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HN",
+      "matrix": "technosphere"
+    },
+    "value": 0.0517
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HT",
+      "matrix": "technosphere"
+    },
+    "value": 0.00355
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HU",
+      "matrix": "technosphere"
+    },
+    "value": 8.83e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ID",
+      "matrix": "technosphere"
+    },
+    "value": 0.015
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IE",
+      "matrix": "technosphere"
+    },
+    "value": 0.209
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IL",
+      "matrix": "technosphere"
+    },
+    "value": 0.00186
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IN",
+      "matrix": "technosphere"
+    },
+    "value": 0.00577
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IQ",
+      "matrix": "technosphere"
+    },
+    "value": 0.161
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0151
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IT",
+      "matrix": "technosphere"
+    },
+    "value": 0.0278
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "JO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0434
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "JP",
+      "matrix": "technosphere"
+    },
+    "value": 0.146
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KE",
+      "matrix": "technosphere"
+    },
+    "value": 0.0517
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KG",
+      "matrix": "technosphere"
+    },
+    "value": 0.0263
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KM",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KP",
+      "matrix": "technosphere"
+    },
+    "value": 0.209
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0712
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.0567
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LA",
+      "matrix": "technosphere"
+    },
+    "value": 0.198
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LB",
+      "matrix": "technosphere"
+    },
+    "value": 0.0757
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LK",
+      "matrix": "technosphere"
+    },
+    "value": 0.139
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LR",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LS",
+      "matrix": "technosphere"
+    },
+    "value": 0.181
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LU",
+      "matrix": "technosphere"
+    },
+    "value": 0.0995
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "LY",
+      "matrix": "technosphere"
+    },
+    "value": 0.0212
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MA",
+      "matrix": "technosphere"
+    },
+    "value": 0.018
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MEA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0334
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ML",
+      "matrix": "technosphere"
+    },
+    "value": 0.0086
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MM",
+      "matrix": "technosphere"
+    },
+    "value": 0.0703
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MN",
+      "matrix": "technosphere"
+    },
+    "value": 0.174
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MR",
+      "matrix": "technosphere"
+    },
+    "value": 0.0454
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MW",
+      "matrix": "technosphere"
+    },
+    "value": 0.181
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MX",
+      "matrix": "technosphere"
+    },
+    "value": 0.0401
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MY",
+      "matrix": "technosphere"
+    },
+    "value": 0.0942
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.0688
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0228
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NE",
+      "matrix": "technosphere"
+    },
+    "value": 0.0374
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NG",
+      "matrix": "technosphere"
+    },
+    "value": 0.0472
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NI",
+      "matrix": "technosphere"
+    },
+    "value": 9.65e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NL",
+      "matrix": "technosphere"
+    },
+    "value": 9.06e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NO",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NORDEL",
+      "matrix": "technosphere"
+    },
+    "value": 0.0204
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NP",
+      "matrix": "technosphere"
+    },
+    "value": 0.00522
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "NZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.0638
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "OM",
+      "matrix": "technosphere"
+    },
+    "value": 0.0156
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PAO",
+      "matrix": "technosphere"
+    },
+    "value": 0.0512
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PAS",
+      "matrix": "technosphere"
+    },
+    "value": 0.0348
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PE",
+      "matrix": "technosphere"
+    },
+    "value": 0.146
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PH",
+      "matrix": "technosphere"
+    },
+    "value": 0.033
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PK",
+      "matrix": "technosphere"
+    },
+    "value": 0.0314
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PL",
+      "matrix": "technosphere"
+    },
+    "value": 0.00303
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PR",
+      "matrix": "technosphere"
+    },
+    "value": 0.157
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PT",
+      "matrix": "technosphere"
+    },
+    "value": 0.136
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PY",
+      "matrix": "technosphere"
+    },
+    "value": 0.00179
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RAF",
+      "matrix": "technosphere"
+    },
+    "value": 0.0186
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RAS",
+      "matrix": "technosphere"
+    },
+    "value": 0.0322
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RER",
+      "matrix": "technosphere"
+    },
+    "value": 0.0204
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RLA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0676
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RME",
+      "matrix": "technosphere"
+    },
+    "value": 0.0227
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RNA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0242
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RNE",
+      "matrix": "technosphere"
+    },
+    "value": 0.0526
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RO",
+      "matrix": "technosphere"
+    },
+    "value": 0.000439
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RU",
+      "matrix": "technosphere"
+    },
+    "value": 0.0418
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RW",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0292
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SAS",
+      "matrix": "technosphere"
+    },
+    "value": 0.0185
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SD",
+      "matrix": "technosphere"
+    },
+    "value": 0.0682
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SE",
+      "matrix": "technosphere"
+    },
+    "value": 0.181
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SK",
+      "matrix": "technosphere"
+    },
+    "value": 0.00961
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SL",
+      "matrix": "technosphere"
+    },
+    "value": 0.0971
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SN",
+      "matrix": "technosphere"
+    },
+    "value": 0.00224
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SY",
+      "matrix": "technosphere"
+    },
+    "value": 0.0572
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.21
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TD",
+      "matrix": "technosphere"
+    },
+    "value": 0.0455
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TG",
+      "matrix": "technosphere"
+    },
+    "value": 0.183
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TH",
+      "matrix": "technosphere"
+    },
+    "value": 0.0359
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TJ",
+      "matrix": "technosphere"
+    },
+    "value": 1.85e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TL",
+      "matrix": "technosphere"
+    },
+    "value": 0.0807
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TM",
+      "matrix": "technosphere"
+    },
+    "value": 0.156
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.175
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "UG",
+      "matrix": "technosphere"
+    },
+    "value": 0.201
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "US",
+      "matrix": "technosphere"
+    },
+    "value": 0.024
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "UY",
+      "matrix": "technosphere"
+    },
+    "value": 0.118
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "UZ",
+      "matrix": "technosphere"
+    },
+    "value": 0.0729
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "VE",
+      "matrix": "technosphere"
+    },
+    "value": 0.11
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "VN",
+      "matrix": "technosphere"
+    },
+    "value": 0.0287
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "WEU",
+      "matrix": "technosphere"
+    },
+    "value": 0.021
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "YE",
+      "matrix": "technosphere"
+    },
+    "value": 0.204
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ZA",
+      "matrix": "technosphere"
+    },
+    "value": 0.0618
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ZM",
+      "matrix": "technosphere"
+    },
+    "value": 0.124
+  },
+  {
+    "supplier": {
+      "name": "Water, well, in ground",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ZW",
+      "matrix": "technosphere"
+    },
+    "value": 0.0222
+  }
+]
