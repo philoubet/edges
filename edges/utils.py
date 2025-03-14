@@ -121,26 +121,53 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
 
 def get_flow_matrix_positions(mapping: dict) -> list:
     """
-    Retrieve information about the flows in the given matrix.
-    :param mapping: The mapping of the flows.
-    :return: A list with the positions of the flows.
+    Retrieve information about the flows in the given matrix using a batch query.
+
+    :param mapping: A dictionary where keys are activity identifiers (tuples like (database, code)
+                    or integers) and values are the desired positions.
+    :return: A list of dictionaries containing flow information and their positions.
     """
-    flows = []
-    for k, v in mapping.items():
-        flow = bw2data.get_activity(k)
-        flows.append(
-            {
-                "name": flow["name"],
-                "reference product": flow.get("reference product"),
-                "categories": flow.get("categories"),
-                "unit": flow.get("unit"),
-                "location": flow.get("location"),
-                "classifications": flow.get("classifications"),
-                "type": flow.get("type"),
-                "position": v,
-            }
-        )
-    return flows
+    # Batch retrieve flows using get_activities() from bw2data.
+    keys = list(mapping.keys())
+    flows = get_activities(keys)
+
+    # Create a lookup dictionary mapping each key to its flow.
+    # Here we assume that each flow contains 'database' and 'code' (if key is a tuple),
+    # or an 'id' field (if key is an integer).
+    lookup = {}
+    for flow in flows:
+        try:
+            # If available, use
+            key_val = flow.get("id")
+        except (KeyError, TypeError):
+            # Otherwise, fall back to (database, code) as the key.
+            key_val = (flow["database"], flow["code"])
+        lookup[key_val] = flow
+
+    # Build the list of flows with their associated positions.
+    result = []
+    for k, pos in mapping.items():
+        # Attempt to find the flow using the key as given.
+        flow = lookup.get(k)
+        if flow is None:
+            # Fallback: if the key is a tuple but not found, try matching based on the code
+            if isinstance(k, tuple) and len(k) == 2:
+                flow = next((f for f in flows if f.get("code") == k[1]), None)
+        if flow is None:
+            print(f"Flow with key {k} not found.")
+            continue
+
+        result.append({
+            "name": flow["name"],
+            "reference product": flow.get("reference product"),
+            "categories": flow.get("categories"),
+            "unit": flow.get("unit"),
+            "location": flow.get("location"),
+            "classifications": flow.get("classifications"),
+            "type": flow.get("type"),
+            "position": pos,
+        })
+    return result
 
 
 def preprocess_cfs(cfs: list) -> dict:
@@ -182,3 +209,67 @@ def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> l
 
     # remove the cfs with locations not found in the database
     return [cf for cf in cfs if cf["consumer"].get("location") in locations_available]
+
+
+def get_activities(keys, **kwargs):
+    """
+    Retrieve multiple activity objects in a single SQL query.
+
+    Args:
+        keys: A list (or other iterable) of keys. Each key can be either:
+              - A tuple (database, code), or
+              - An integer (the activity id)
+        **kwargs: Additional filtering criteria, if needed.
+
+    Returns:
+        A list of activity objects.
+    """
+    from bw2data.backends import ActivityDataset as AD
+    from bw2data.subclass_mapping import NODE_PROCESS_CLASS_MAPPING
+    from bw2data import databases
+    import numbers
+
+    # Ensure keys is a list
+    if not isinstance(keys, (list, tuple, set)):
+        raise TypeError("keys must be a list, tuple, or set")
+
+    keys = list(keys)  # Ensure subscriptability
+    qs = AD.select()
+
+    # If keys are tuples, assume they are (database, code) pairs.
+    if all(isinstance(k, tuple) for k in keys):
+        qs = qs.where((AD.database, AD.code).in_(keys))
+    # If keys are integers, assume they are activity ids.
+    elif all(isinstance(k, numbers.Integral) for k in keys):
+        qs = qs.where(AD.id.in_(keys))
+    else:
+        raise TypeError("All keys must be either tuples (database, code) or integers (ids).")
+
+    # If additional kwargs are provided, add those filters.
+    mapping = {
+        "id": AD.id,
+        "code": AD.code,
+        "database": AD.database,
+        "location": AD.location,
+        "name": AD.name,
+        "product": AD.product,
+        "type": AD.type,
+    }
+    for key, value in kwargs.items():
+        if key in mapping:
+            qs = qs.where(mapping[key] == value)
+
+    # Retrieve all nodes and wrap them in the proper node class.
+    nodes = []
+    for obj in qs:
+        backend = databases[obj.database].get("backend", "sqlite")
+        cls = NODE_PROCESS_CLASS_MAPPING[backend]
+        nodes.append(cls(obj))
+
+    # Optionally, verify that all requested keys were found
+    # (if uniqueness is expected, you might want to raise an error if some keys are missing)
+    if len(nodes) != len(keys):
+        raise Exception("Not all requested activity objects were found.")
+
+    return nodes
+

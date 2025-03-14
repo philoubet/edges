@@ -22,6 +22,7 @@ import bw2data
 from bw2calc import prepare_lca_inputs, PYPARDISO
 from bw2calc.dictionary_manager import DictionaryManager
 from bw2calc.utils import get_datapackage
+from tqdm import tqdm
 import yaml
 from textwrap import fill
 
@@ -399,27 +400,18 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
-        def match_with_operator(
-            flow_to_match: dict, lookup: dict, required_fields: set
-        ) -> list:
-            """
-            Match a flow against a lookup dictionary considering the operator.
-            :param flow_to_match: The flow to match.
-            :param lookup: The lookup dictionary.
-            :param required_fields: The required fields for matching.
-            :return: A list of matching positions.
-            """
+        def match_with_operator(flow_to_match: dict, lookup: dict, required_fields: set) -> list:
+            operator_value = flow_to_match.get("operator", "equals")
+            flow_vals = {k: flow_to_match.get(k) for k in required_fields}
             matches = []
             for key, positions in lookup.items():
-                if all(
-                    match_operator(
-                        value=flow_to_match.get(k),
-                        target=v,
-                        operator=flow_to_match.get("operator", "equals"),
-                    )
-                    for (k, v) in key
-                    if k in required_fields
-                ):
+                # Use a flag for early exit:
+                for k, v in key:
+                    if k in required_fields:
+                        if not match_operator(flow_vals.get(k), v, operator_value):
+                            break  # short-circuit if any field doesn't match
+                else:
+                    # Only if we didn't break, the match succeeded
                     matches.extend(positions)
             return matches
 
@@ -478,7 +470,8 @@ class EdgeLCIA(LCA):
             :param unprocessed_locations_cache: The cache for unprocessed locations
             :return: None
             """
-            for supplier_idx, consumer_idx in unprocessed_edges:
+            print("Handling static regions...")
+            for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
@@ -515,7 +508,8 @@ class EdgeLCIA(LCA):
             :param cfs_lookup: The lookup dictionary for CFs.
             :return: None
             """
-            for supplier_idx, consumer_idx in unprocessed_edges:
+            print("Handling dynamic regions...")
+            for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
@@ -602,7 +596,8 @@ class EdgeLCIA(LCA):
             unprocessed_locations_cache: dict,
         ) -> None:
 
-            for supplier_idx, consumer_idx in unprocessed_edges:
+            print("Handling unmatched locations...")
+            for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
@@ -657,7 +652,9 @@ class EdgeLCIA(LCA):
             else self.technosphere_edges
         )
 
-        for cf in self.cfs_data:
+        # tdqm progress bar
+        print("Identifying eligible exchanges...")
+        for cf in tqdm(self.cfs_data):
             # Generate supplier candidates
             supplier_candidates = match_with_operator(
                 cf["supplier"], supplier_lookup, required_supplier_fields
@@ -727,25 +724,33 @@ class EdgeLCIA(LCA):
         }
         geo_cache = {}
 
-        handle_static_regions(
-            "biosphere-technosphere",
-            unprocessed_biosphere_edges,
-            cfs_lookup,
-            defaultdict(dict),
-        )
-        handle_static_regions(
-            "technosphere-technosphere",
-            unprocessed_technosphere_edges,
-            cfs_lookup,
-            defaultdict(dict),
-        )
 
-        handle_dynamic_regions(
-            "biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup
-        )
-        handle_dynamic_regions(
-            "technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup
-        )
+        if len(unprocessed_biosphere_edges) > 0:
+            handle_static_regions(
+                "biosphere-technosphere",
+                unprocessed_biosphere_edges,
+                cfs_lookup,
+                defaultdict(dict),
+            )
+
+        if len(unprocessed_technosphere_edges) > 0:
+            handle_static_regions(
+                "technosphere-technosphere",
+                unprocessed_technosphere_edges,
+                cfs_lookup,
+                defaultdict(dict),
+            )
+
+
+        if len(unprocessed_biosphere_edges) > 0:
+            handle_dynamic_regions(
+                "biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup
+            )
+
+        if len(unprocessed_technosphere_edges) > 0:
+            handle_dynamic_regions(
+                "technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup
+            )
 
         self.ignored_method_exchanges = [
             cf
@@ -810,7 +815,8 @@ class EdgeLCIA(LCA):
             ("technosphere-technosphere", unprocessed_technosphere_edges),
         ]:
             if len(unprocessed) > 0:
-                for supplier_idx, consumer_idx in unprocessed_biosphere_edges:
+                print("Handling remaining exchanges...")
+                for supplier_idx, consumer_idx in tqdm(unprocessed_biosphere_edges):
                     supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                     consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                     location = consumer_info.get("location")
