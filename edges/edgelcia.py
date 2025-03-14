@@ -878,7 +878,15 @@ class EdgeLCIA(LCA):
         table = PrettyTable()
         table.header = False
         rows = []
-        rows.append(["Activity", fill(bw2data.get_activity(id=list(self.demand.keys())[0])["name"], width=45)])
+        rows.append(
+            [
+                "Activity",
+                fill(
+                    bw2data.get_activity(id=list(self.demand.keys())[0])["name"],
+                    width=45,
+                ),
+            ]
+        )
         rows.append(["Method name", fill(str(self.method), width=45)])
         rows.append(["Data file", fill(self.lcia_data_file.stem, width=45)])
         rows.append(["Unique CFs in method", self.cfs_number])
