@@ -400,7 +400,9 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
-        def match_with_operator(flow_to_match: dict, lookup: dict, required_fields: set) -> list:
+        def match_with_operator(
+            flow_to_match: dict, lookup: dict, required_fields: set
+        ) -> list:
             operator_value = flow_to_match.get("operator", "equals")
             flow_vals = {k: flow_to_match.get(k) for k in required_fields}
             matches = []
@@ -724,7 +726,6 @@ class EdgeLCIA(LCA):
         }
         geo_cache = {}
 
-
         if len(unprocessed_biosphere_edges) > 0:
             handle_static_regions(
                 "biosphere-technosphere",
@@ -740,7 +741,6 @@ class EdgeLCIA(LCA):
                 cfs_lookup,
                 defaultdict(dict),
             )
-
 
         if len(unprocessed_biosphere_edges) > 0:
             handle_dynamic_regions(
