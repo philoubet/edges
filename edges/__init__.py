@@ -10,7 +10,7 @@ __version__ = "0.1.0"
 from bw2calc import __version__ as bw2calc_version
 
 if isinstance(bw2calc_version, str):
-    bw2calc_version = tuple(map(int, bw2calc_version.split('.')))
+    bw2calc_version = tuple(map(int, bw2calc_version.split(".")))
 
 if bw2calc_version < (2, 0, 0):
     from .edgelcia_bw2 import EdgeLCIA
