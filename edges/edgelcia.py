@@ -232,21 +232,100 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     return lookup
 
 
-def match_operator(value: str, target: str, operator: str) -> bool:
+def build_index(lookup: dict, required_fields: set) -> dict:
     """
-    Match a value against a target using the specified operator.
-    :param value: The value to match.
-    :param target: The target value to compare against.
-    :param operator: The matching operator (equals, contains, startswith).
-    :return: True if the value matches the target based on the operator.
+    Build an inverted index from the lookup dictionary.
+    The index maps each required field to a dict, whose keys are the values
+    from the lookup entries and whose values are lists of tuples:
+    (lookup_key, positions), where lookup_key is the original key from lookup.
+
+    :param lookup: The original lookup dictionary.
+    :param required_fields: The fields to index.
+    :return: A dictionary index.
+    """
+    index = {field: {} for field in required_fields}
+    for key, positions in lookup.items():
+        # Each key is assumed to be an iterable of (field, value) pairs.
+        for k, v in key:
+            if k in required_fields:
+                index[k].setdefault(v, []).append((key, positions))
+    return index
+
+
+def match_operator(value, target, operator: str) -> bool:
+    """
+    Implements matching for three operator types:
+      - "equals": value == target
+      - "startswith": value starts with target (if both are strings)
+      - "contains": target is contained in value (if both are strings)
+
+    :param value: The flow's value.
+    :param target: The lookup's candidate value.
+    :param operator: The operator type ("equals", "startswith", "contains").
+    :return: True if the condition is met, False otherwise.
     """
     if operator == "equals":
         return value == target
-    if operator == "contains":
-        return value in target
-    if operator == "startswith":
-        return target.startswith(value)
-    raise ValueError(f"Unsupported operator: {operator}")
+    elif operator == "startswith":
+        if isinstance(value, str) and isinstance(target, str):
+            return value.startswith(target)
+        return False
+    elif operator == "contains":
+        if isinstance(value, str) and isinstance(target, str):
+            return target in value
+        return False
+    return False
+
+
+def match_with_index(
+    flow_to_match: dict, index: dict, lookup_mapping: dict, required_fields: set
+) -> list:
+    """
+    Match a flow against the lookup using the inverted index.
+    Supports "equals", "startswith", and "contains" operators.
+
+    :param flow_to_match: The flow to match.
+    :param index: The inverted index produced by build_index().
+    :param lookup_mapping: The original lookup dictionary mapping keys to positions.
+    :param required_fields: The required fields for matching.
+    :return: A list of matching positions.
+    """
+    operator_value = flow_to_match.get("operator", "equals")
+    candidate_keys = None
+
+    for field in required_fields:
+        flow_value = flow_to_match.get(field)
+        field_index = index.get(field, {})
+        field_candidates = set()
+
+        if operator_value == "equals":
+            # Fast direct lookup.
+            for candidate in field_index.get(flow_value, []):
+                candidate_key, _ = candidate
+                field_candidates.add(candidate_key)
+        else:
+            # For "startswith" or "contains", we iterate over all candidate values.
+            for candidate_value, candidate_list in field_index.items():
+                if match_operator(flow_value, candidate_value, operator_value):
+                    for candidate in candidate_list:
+                        candidate_key, _ = candidate
+                        field_candidates.add(candidate_key)
+
+        # Initialize or intersect candidate sets.
+        if candidate_keys is None:
+            candidate_keys = field_candidates
+        else:
+            candidate_keys &= field_candidates
+
+        # Early exit if no candidates remain.
+        if not candidate_keys:
+            return []
+
+    # Gather positions from the original lookup mapping for all candidate keys.
+    matches = []
+    for key in candidate_keys:
+        matches.extend(lookup_mapping.get(key, []))
+    return matches
 
 
 class EdgeLCIA(LCA):
@@ -654,18 +733,33 @@ class EdgeLCIA(LCA):
             else self.technosphere_edges
         )
 
+        supplier_index = build_index(supplier_lookup, required_supplier_fields)
+        consumer_index = build_index(consumer_lookup, required_consumer_fields)
+
         # tdqm progress bar
         print("Identifying eligible exchanges...")
         for cf in tqdm(self.cfs_data):
             # Generate supplier candidates
-            supplier_candidates = match_with_operator(
-                cf["supplier"], supplier_lookup, required_supplier_fields
+            supplier_candidates = match_with_index(
+                cf["supplier"],
+                supplier_index,
+                supplier_lookup,
+                required_supplier_fields,
             )
+            # supplier_candidates = match_with_operator(
+            #    cf["supplier"], supplier_lookup, required_supplier_fields
+            # )
 
             # Generate consumer candidates
-            consumer_candidates = match_with_operator(
-                cf["consumer"], consumer_lookup, required_consumer_fields
+            consumer_candidates = match_with_index(
+                cf["consumer"],
+                consumer_index,
+                consumer_lookup,
+                required_consumer_fields,
             )
+            # consumer_candidates = match_with_operator(
+            #    cf["consumer"], consumer_lookup, required_consumer_fields
+            # )
 
             # Create pairs of supplier and consumer candidates
             cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
