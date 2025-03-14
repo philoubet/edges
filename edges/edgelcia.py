@@ -23,6 +23,7 @@ from bw2calc import prepare_lca_inputs, PYPARDISO
 from bw2calc.dictionary_manager import DictionaryManager
 from bw2calc.utils import get_datapackage
 import yaml
+from textwrap import fill
 
 from .utils import (
     format_data,
@@ -287,7 +288,6 @@ class EdgeLCIA(LCA):
         self.technosphere_flows_lookup = None
         self.technosphere_edges = None
         self.technosphere_flow_matrix = None
-
         self.biosphere_edges = None
         self.technosphere_flows = None
         self.biosphere_flows = None
@@ -797,13 +797,62 @@ class EdgeLCIA(LCA):
                 unprocessed_locations_cache=defaultdict(dict),
             )
 
+        unprocessed_biosphere_edges = (
+            set(unprocessed_biosphere_edges) - processed_biosphere_edges
+        )
+        unprocessed_technosphere_edges = (
+            set(unprocessed_technosphere_edges) - processed_technosphere_edges
+        )
+
+        # if still unprocessed, we give them global CFs
+        for direction, unprocessed in [
+            ("biosphere-technosphere", unprocessed_biosphere_edges),
+            ("technosphere-technosphere", unprocessed_technosphere_edges),
+        ]:
+            if len(unprocessed) > 0:
+                for supplier_idx, consumer_idx in unprocessed_biosphere_edges:
+                    supplier_info = dict(reversed_supplier_lookup[supplier_idx])
+                    consumer_info = dict(reversed_consumer_lookup[consumer_idx])
+                    location = consumer_info.get("location")
+                    constituents = list(weight.keys())
+
+                    new_cf = compute_average_cf(
+                        constituents=constituents,
+                        supplier_info=supplier_info,
+                        weight=weight,
+                        cfs_lookup=cfs_lookup,
+                        region=location,
+                    )
+
+                    logger.info(
+                        f"Region: {location}. "
+                        f"New CF: {new_cf}. "
+                        f"Constituting region(s) ({len(constituents)}): {constituents}"
+                    )
+
+                    if new_cf:
+                        self.cfs_data.append(
+                            {
+                                "supplier": supplier_info,
+                                "consumer": consumer_info,
+                                direction: [(supplier_idx, consumer_idx)],
+                                "value": new_cf,
+                            }
+                        )
+
         self.print_summary_table(
-            unprocessed_biosphere_edges=unprocessed_biosphere_edges,
-            unprocessed_technosphere_edges=unprocessed_technosphere_edges,
+            processed_biosphere_edges=list(processed_biosphere_edges),
+            processed_technosphere_edges=list(processed_technosphere_edges),
+            unprocessed_biosphere_edges=list(unprocessed_biosphere_edges),
+            unprocessed_technosphere_edges=list(unprocessed_technosphere_edges),
         )
 
     def print_summary_table(
-        self, unprocessed_biosphere_edges: list, unprocessed_technosphere_edges: list
+        self,
+        processed_biosphere_edges: list,
+        processed_technosphere_edges: list,
+        unprocessed_biosphere_edges: list,
+        unprocessed_technosphere_edges: list,
     ):
         """
         Build a table that summarize the method name, data file,
@@ -825,58 +874,12 @@ class EdgeLCIA(LCA):
             set(unprocessed_technosphere_edges) - processed_technosphere_edges
         )
 
-        if unprocessed_biosphere_edges:
-            # print a pretty table and list the flows which have not been characterized
-            print(
-                f"{len(unprocessed_biosphere_edges)} biosphere exchanges have not been characterized:"
-            )
-            table = PrettyTable()
-            table.field_names = [
-                "Supplier name",
-                "Supplier categories",
-                "Consumer name",
-                "Consumer product",
-                "Consumer location",
-            ]
-            for i, j in unprocessed_biosphere_edges:
-                supplier = bw2data.get_activity(self.reversed_biosphere[i])
-                consumer = bw2data.get_activity(self.reversed_activity[j])
-                table.add_row(
-                    [
-                        supplier["name"][:40],
-                        supplier.get("categories"),
-                        consumer.get("name")[:40],
-                        consumer.get("reference product")[:30],
-                        consumer.get("location"),
-                    ]
-                )
-            print(table)
-
-        if unprocessed_technosphere_edges:
-            # print a pretty table and list the flows which have not been characterized
-            print(
-                f"{len(unprocessed_technosphere_edges)} technosphere exchanges have not been characterized:"
-            )
-            table = PrettyTable()
-            table.field_names = ["Name", "Reference product", "Location", "Amount"]
-            for i, j in unprocessed_technosphere_edges:
-                flow = bw2data.get_activity(self.reversed_activity[i])
-                table.add_row(
-                    [
-                        flow["name"],
-                        flow.get("reference product"),
-                        flow.get("location"),
-                        self.technosphere_flow_matrix[i, j],
-                    ]
-                )
-            print(table)
-
         # build PrettyTable
         table = PrettyTable()
         table.header = False
         rows = []
-        rows.append(["Method name", self.method])
-        rows.append(["Data file", self.lcia_data_file.stem])
+        rows.append(["Method name", fill(str(self.method), width=45)])
+        rows.append(["Data file", fill(self.lcia_data_file.stem, width=45)])
         rows.append(["Unique CFs in method", self.cfs_number])
         rows.append(
             ["Unique CFs used", len(list(set([x["value"] for x in self.cfs_data])))]
@@ -893,16 +896,28 @@ class EdgeLCIA(LCA):
         if len(processed_biosphere_edges) > 0:
             rows.append(
                 [
-                    "Eligible biosphere exc. characterized/uncharacterized",
-                    f"{len(processed_biosphere_edges)} / {len(unprocessed_biosphere_edges)}",
+                    "Exc. characterized",
+                    len(processed_biosphere_edges),
+                ]
+            )
+            rows.append(
+                [
+                    "Exc. uncharacterized",
+                    len(unprocessed_biosphere_edges),
                 ]
             )
 
         if len(processed_technosphere_edges) > 0:
             rows.append(
                 [
-                    "Eligible technosphere exc. characterized/uncharacterized",
-                    f"{len(processed_technosphere_edges)} / {len(unprocessed_technosphere_edges)}",
+                    "Exc. characterized",
+                    len(processed_technosphere_edges),
+                ]
+            )
+            rows.append(
+                [
+                    "Exc. uncharacterized",
+                    len(unprocessed_technosphere_edges),
                 ]
             )
 
@@ -910,6 +925,39 @@ class EdgeLCIA(LCA):
             table.add_row(row)
 
         print(table)
+
+        for unprocessed_edges in [
+            unprocessed_biosphere_edges,
+            unprocessed_technosphere_edges,
+        ]:
+            if unprocessed_edges:
+                # print a pretty table and list the flows
+                # which have not been characterized
+                print(
+                    f"{len(unprocessed_edges)} exchanges have been given a global CF:"
+                )
+                table = PrettyTable()
+                table.field_names = [
+                    "Supplier name",
+                    "Supplier loc",
+                    "Consumer name",
+                    "Consumer loc",
+                ]
+                for i, j in unprocessed_biosphere_edges:
+                    try:
+                        supplier = bw2data.get_activity(self.reversed_biosphere[i])
+                    except:
+                        supplier = bw2data.get_activity(self.reversed_activity[i])
+                    consumer = bw2data.get_activity(self.reversed_activity[j])
+                    table.add_row(
+                        [
+                            fill(supplier["name"], width=20),
+                            fill(supplier.get("location", ""), width=20),
+                            fill(consumer["name"], width=20),
+                            fill(consumer.get("location"), width=20),
+                        ]
+                    )
+                print(table)
 
     def fill_in_lcia_matrix(self) -> None:
         """

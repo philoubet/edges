@@ -909,7 +909,7 @@ class EdgeLCIA(LCA):
         processed_technosphere_edges = {
             f for cf in self.cfs_data for f in cf.get("technosphere-technosphere", [])
         }
-        #
+
         unprocessed_biosphere_edges = (
             set(unprocessed_biosphere_edges) - processed_biosphere_edges
         )
