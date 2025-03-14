@@ -278,10 +278,7 @@ def match_operator(value, target, operator: str) -> bool:
 
 
 def match_with_index(
-        flow_to_match: dict,
-        index: dict,
-        lookup_mapping: dict,
-        required_fields: set
+    flow_to_match: dict, index: dict, lookup_mapping: dict, required_fields: set
 ) -> list:
     """
     Match a flow against the lookup using the inverted index.
@@ -482,7 +479,9 @@ class EdgeLCIA(LCA):
         identify the exchanges in the inventory matrix.
         """
 
-        def match_with_operator(flow_to_match: dict, lookup: dict, required_fields: set) -> list:
+        def match_with_operator(
+            flow_to_match: dict, lookup: dict, required_fields: set
+        ) -> list:
             operator_value = flow_to_match.get("operator", "equals")
             flow_vals = {k: flow_to_match.get(k) for k in required_fields}
             matches = []
@@ -741,16 +740,26 @@ class EdgeLCIA(LCA):
         print("Identifying eligible exchanges...")
         for cf in tqdm(self.cfs_data):
             # Generate supplier candidates
-            supplier_candidates = match_with_index(cf["supplier"], supplier_index, supplier_lookup, required_supplier_fields)
-            #supplier_candidates = match_with_operator(
+            supplier_candidates = match_with_index(
+                cf["supplier"],
+                supplier_index,
+                supplier_lookup,
+                required_supplier_fields,
+            )
+            # supplier_candidates = match_with_operator(
             #    cf["supplier"], supplier_lookup, required_supplier_fields
-            #)
+            # )
 
             # Generate consumer candidates
-            consumer_candidates = match_with_index(cf["consumer"], consumer_index, consumer_lookup, required_consumer_fields)
-            #consumer_candidates = match_with_operator(
+            consumer_candidates = match_with_index(
+                cf["consumer"],
+                consumer_index,
+                consumer_lookup,
+                required_consumer_fields,
+            )
+            # consumer_candidates = match_with_operator(
             #    cf["consumer"], consumer_lookup, required_consumer_fields
-            #)
+            # )
 
             # Create pairs of supplier and consumer candidates
             cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
@@ -811,7 +820,6 @@ class EdgeLCIA(LCA):
         }
         geo_cache = {}
 
-
         if len(unprocessed_biosphere_edges) > 0:
             handle_static_regions(
                 "biosphere-technosphere",
@@ -827,7 +835,6 @@ class EdgeLCIA(LCA):
                 cfs_lookup,
                 defaultdict(dict),
             )
-
 
         if len(unprocessed_biosphere_edges) > 0:
             handle_dynamic_regions(

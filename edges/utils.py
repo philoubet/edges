@@ -157,16 +157,18 @@ def get_flow_matrix_positions(mapping: dict) -> list:
             print(f"Flow with key {k} not found.")
             continue
 
-        result.append({
-            "name": flow["name"],
-            "reference product": flow.get("reference product"),
-            "categories": flow.get("categories"),
-            "unit": flow.get("unit"),
-            "location": flow.get("location"),
-            "classifications": flow.get("classifications"),
-            "type": flow.get("type"),
-            "position": pos,
-        })
+        result.append(
+            {
+                "name": flow["name"],
+                "reference product": flow.get("reference product"),
+                "categories": flow.get("categories"),
+                "unit": flow.get("unit"),
+                "location": flow.get("location"),
+                "classifications": flow.get("classifications"),
+                "type": flow.get("type"),
+                "position": pos,
+            }
+        )
     return result
 
 
@@ -243,7 +245,9 @@ def get_activities(keys, **kwargs):
     elif all(isinstance(k, numbers.Integral) for k in keys):
         qs = qs.where(AD.id.in_(keys))
     else:
-        raise TypeError("All keys must be either tuples (database, code) or integers (ids).")
+        raise TypeError(
+            "All keys must be either tuples (database, code) or integers (ids)."
+        )
 
     # If additional kwargs are provided, add those filters.
     mapping = {
@@ -272,4 +276,3 @@ def get_activities(keys, **kwargs):
         raise Exception("Not all requested activity objects were found.")
 
     return nodes
-
