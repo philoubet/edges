@@ -79,6 +79,28 @@ def check_method(impact_method: str) -> str:
     return impact_method
 
 
+def check_presence_of_required_fields(data: list):
+    """
+    Check if the required fields are present in the data.
+    :param data: The data to check.
+    :return: True if the required fields are present, False otherwise.
+    """
+
+    assert len(data) > 0, "No data provided."
+
+    for cf in data:
+        assert all(
+            x in cf for x in ["supplier", "consumer"]
+        ), f"Missing supplier or consumer in {cf}."
+        assert any(x in cf for x in ["value", "formula"])
+        assert "matrix" in cf["supplier"], f"Missing matrix fields in {cf['supplier']}."
+        assert "matrix" in cf["consumer"], f"Missing matrix fields in {cf['consumer']}."
+        assert any(
+            x.get("operator", "equals") in ["equals", "contains", "startswith"]
+            for x in [cf["supplier"], cf["consumer"]]
+        ), f"Invalid operator in {cf}."
+
+
 def format_data(data: list, weight: str) -> list:
     """
     Format the data for the LCIA method.
@@ -92,6 +114,7 @@ def format_data(data: list, weight: str) -> list:
                 if field == "categories":
                     cf[category][field] = tuple(value)
 
+    check_presence_of_required_fields(data)
     return add_population_and_gdp_data(data=data, weight=weight)
 
 
@@ -271,7 +294,12 @@ def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> l
     )
 
     # remove the cfs with locations not found in the database
-    return [cf for cf in cfs if cf["consumer"].get("location") in locations_available]
+    for cf in cfs:
+        if "location" in cf["consumer"]:
+            location = cf["consumer"]["location"]
+            if location not in locations_available:
+                cfs.remove(cf)
+    return cfs
 
 
 def get_activities(keys, **kwargs):

@@ -98,10 +98,12 @@ def compute_average_cf(
         """
         for key in supplier_keys:
             supplier_value = supplier_info.get(key)
-            cf_value = cf["supplier"].get(key)
+            match_target = cf["supplier"].get(key)
             operator = cf["supplier"].get("operator", "equals")
 
-            if not match_operator(cf_value, supplier_value, operator):
+            if not match_operator(
+                value=supplier_value, target=match_target, operator=operator
+            ):
                 return False
         return True
 
@@ -277,19 +279,21 @@ def match_with_index(
     candidate_keys = None
 
     for field in required_fields:
-        flow_value = flow_to_match.get(field)
+        match_target = flow_to_match.get(field)
         field_index = index.get(field, {})
         field_candidates = set()
 
         if operator_value == "equals":
             # Fast direct lookup.
-            for candidate in field_index.get(flow_value, []):
+            for candidate in field_index.get(match_target, []):
                 candidate_key, _ = candidate
                 field_candidates.add(candidate_key)
         else:
             # For "startswith" or "contains", we iterate over all candidate values.
             for candidate_value, candidate_list in field_index.items():
-                if match_operator(flow_value, candidate_value, operator_value):
+                if match_operator(
+                    value=candidate_value, target=match_target, operator=operator_value
+                ):
                     for candidate in candidate_list:
                         candidate_key, _ = candidate
                         field_candidates.add(candidate_key)
