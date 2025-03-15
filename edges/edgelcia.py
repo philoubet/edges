@@ -8,22 +8,17 @@ from collections import defaultdict
 import logging
 from pathlib import Path
 import json
-from typing import Iterable, Optional, Union
-from fsspec import AbstractFileSystem
+from typing import Optional
+
+import bw2calc
 import numpy as np
 
 from scipy.sparse import coo_matrix
 from constructive_geometries import Geomatcher
 import pandas as pd
 from prettytable import PrettyTable
-import bw_processing as bwp
-from bw2calc import LCA
 import bw2data
-from bw2calc import prepare_lca_inputs, PYPARDISO
-from bw2calc.dictionary_manager import DictionaryManager
-from bw2calc.utils import get_datapackage
 from tqdm import tqdm
-import yaml
 from textwrap import fill
 
 from .utils import (
@@ -32,6 +27,8 @@ from .utils import (
     get_flow_matrix_positions,
     preprocess_cfs,
     check_database_references,
+    load_missing_geographies,
+    get_str,
 )
 from .filesystem_constants import DATA_DIR
 
@@ -51,18 +48,6 @@ logger = logging.getLogger(__name__)
 
 
 geo = Geomatcher()
-
-
-def load_missing_geographies():
-    """
-    Load missing geographies from the YAML file.
-    """
-    with open(
-        DATA_DIR / "metadata" / "missing_geographies.yaml", "r", encoding="utf-8"
-    ) as f:
-        return yaml.safe_load(f)
-
-
 missing_geographies = load_missing_geographies()
 
 
@@ -137,10 +122,6 @@ def compute_average_cf(
         )
 
     return value
-
-
-def get_str(x):
-    return x if isinstance(x, str) else x[-1]
 
 
 def find_constituting_region(
@@ -328,38 +309,27 @@ def match_with_index(
     return matches
 
 
-class EdgeLCIA(LCA):
+class EdgeLCIA:
     """
-    Subclass of the `bw2io.lca.LCA` class that implements the calculation
-    of the life cycle impact assessment (LCIA) results.
+    Class that implements the calculation of the regionalized life cycle impact assessment (LCIA) results.
+    Relies on bw2data.LCA class for inventory calculations and matrices.
     """
 
     def __init__(
         self,
         demand: dict,
-        # Brightway 2 calling convention
         method: Optional[tuple] = None,
-        weighting: Optional[str] = None,
-        lcia_weight: Optional[str] = "population",
-        normalization: Optional[str] = None,
-        # Brightway 2.5 calling convention
-        data_objs: Optional[
-            Iterable[Union[Path, AbstractFileSystem, bwp.DatapackageBase]]
-        ] = None,
-        remapping_dicts: Optional[Iterable[dict]] = None,
-        log_config: Optional[dict] = None,
-        seed_override: Optional[int] = None,
-        use_arrays: Optional[bool] = False,
-        use_distributions: Optional[bool] = False,
-        selective_use: Optional[dict] = False,
+        weight: Optional[dict] = "population",
+        lcia_data_file: Optional[Path] = None,
     ):
         """
         Initialize the SpatialLCA class, ensuring `method` is not passed to
         `prepare_lca_inputs` while still being available in the class.
         """
 
+        self.score = None
         self.cfs_number = None
-        self.lcia_data_file = None
+        self.lcia_data_file = lcia_data_file
         self.reversed_biosphere = None
         self.reversed_activity = None
         self.characterization_matrix = None
@@ -377,63 +347,35 @@ class EdgeLCIA(LCA):
         self.ignored_locations = set()
         self.ignored_method_exchanges = list()
         self.cfs_data = None
-        self.weight = lcia_weight
+        self.weight: str = weight
 
-        if not data_objs:  # If `data_objs` is not provided
-            demand, self.packages, remapping_dicts = prepare_lca_inputs(
-                demand=demand,
-                weighting=weighting,
-                normalization=normalization,
-            )
-            self.method = method
-            self.weighting = weighting
-            self.normalization = normalization
-        else:
-            self.packages = [get_datapackage(obj) for obj in data_objs]
+        self.lca = bw2calc.LCA(demand=demand)
 
-        self.dicts = DictionaryManager()
-        self.demand = demand
-        self.use_arrays = use_arrays
-        self.use_distributions = use_distributions
-        self.selective_use = selective_use or {}
-        self.remapping_dicts = remapping_dicts or {}
-        self.seed_override = seed_override
+    def lci(self) -> None:
 
-    def lci(self, demand: Optional[dict] = None, factorize: bool = False) -> None:
-
-        if not hasattr(self, "technosphere_matrix"):
-            self.load_lci_data()
-        if demand is not None:
-            self.check_demand(demand)
-            self.build_demand_array(demand)
-            self.demand = demand
-        else:
-            self.build_demand_array()
-        if factorize and not PYPARDISO:
-            self.decompose_technosphere()
-        self.lci_calculation()
+        self.lca.lci()
 
         self.technosphere_flow_matrix = self.build_technosphere_edges_matrix()
         self.technosphere_edges = set(
             list(zip(*self.technosphere_flow_matrix.nonzero()))
         )
-        self.biosphere_edges = set(list(zip(*self.inventory.nonzero())))
+        self.biosphere_edges = set(list(zip(*self.lca.inventory.nonzero())))
 
         unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
 
         self.biosphere_flows = get_flow_matrix_positions(
             {
                 k: v
-                for k, v in self.biosphere_dict.items()
+                for k, v in self.lca.biosphere_dict.items()
                 if v in unique_biosphere_flows
             }
         )
 
         self.technosphere_flows = get_flow_matrix_positions(
-            {k: v for k, v in self.activity_dict.items()}
+            {k: v for k, v in self.lca.activity_dict.items()}
         )
 
-        self.reversed_activity, _, self.reversed_biosphere = self.reverse_dict()
+        self.reversed_activity, _, self.reversed_biosphere = self.lca.reverse_dict()
 
     def build_technosphere_edges_matrix(self):
         """
@@ -441,18 +383,18 @@ class EdgeLCIA(LCA):
         """
 
         # Convert CSR to COO format for easier manipulation
-        coo = self.technosphere_matrix.tocoo()
+        coo = self.lca.technosphere_matrix.tocoo()
 
         # Extract negative values
         rows, cols, data = coo.row, coo.col, coo.data
         negative_data = -data * (data < 0)  # Keep only negatives and make them positive
 
         # Scale columns by supply_array
-        scaled_data = negative_data * self.supply_array[cols]
+        scaled_data = negative_data * self.lca.supply_array[cols]
 
         # Create the flow matrix in sparse format
         flow_matrix_sparse = coo_matrix(
-            (scaled_data, (rows, cols)), shape=self.technosphere_matrix.shape
+            (scaled_data, (rows, cols)), shape=self.lca.technosphere_matrix.shape
         )
 
         return flow_matrix_sparse.tocsr()
@@ -478,23 +420,6 @@ class EdgeLCIA(LCA):
         Based on search criteria under `supplier` and `consumer` keys,
         identify the exchanges in the inventory matrix.
         """
-
-        def match_with_operator(
-            flow_to_match: dict, lookup: dict, required_fields: set
-        ) -> list:
-            operator_value = flow_to_match.get("operator", "equals")
-            flow_vals = {k: flow_to_match.get(k) for k in required_fields}
-            matches = []
-            for key, positions in lookup.items():
-                # Use a flag for early exit:
-                for k, v in key:
-                    if k in required_fields:
-                        if not match_operator(flow_vals.get(k), v, operator_value):
-                            break  # short-circuit if any field doesn't match
-                else:
-                    # Only if we didn't break, the match succeeded
-                    matches.extend(positions)
-            return matches
 
         def preprocess_lookups():
             """
@@ -746,9 +671,6 @@ class EdgeLCIA(LCA):
                 supplier_lookup,
                 required_supplier_fields,
             )
-            # supplier_candidates = match_with_operator(
-            #    cf["supplier"], supplier_lookup, required_supplier_fields
-            # )
 
             # Generate consumer candidates
             consumer_candidates = match_with_index(
@@ -757,9 +679,6 @@ class EdgeLCIA(LCA):
                 consumer_lookup,
                 required_consumer_fields,
             )
-            # consumer_candidates = match_with_operator(
-            #    cf["consumer"], consumer_lookup, required_consumer_fields
-            # )
 
             # Create pairs of supplier and consumer candidates
             cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
@@ -982,7 +901,7 @@ class EdgeLCIA(LCA):
             [
                 "Activity",
                 fill(
-                    bw2data.get_activity(id=list(self.demand.keys())[0])["name"],
+                    list(self.lca.demand.keys())[0]["name"],
                     width=45,
                 ),
             ]
@@ -1074,10 +993,10 @@ class EdgeLCIA(LCA):
         """
 
         if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data):
-            self.characterization_matrix = initialize_lcia_matrix(self)
+            self.characterization_matrix = initialize_lcia_matrix(self.lca)
         else:
             self.characterization_matrix = initialize_lcia_matrix(
-                self, matrix_type="technosphere"
+                self.lca, matrix_type="technosphere"
             )
 
         self.identify_exchanges()
@@ -1091,7 +1010,7 @@ class EdgeLCIA(LCA):
 
         self.characterization_matrix = self.characterization_matrix.tocsr()
 
-    def lcia_calculation(self) -> None:
+    def lcia(self) -> None:
         """
         Calculate the LCIA score.
         """
@@ -1100,12 +1019,14 @@ class EdgeLCIA(LCA):
 
         try:
             self.characterized_inventory = self.characterization_matrix.multiply(
-                self.inventory
+                self.lca.inventory
             )
         except ValueError:
             self.characterized_inventory = self.characterization_matrix.multiply(
                 self.technosphere_flow_matrix
             )
+
+        self.score = self.characterized_inventory.sum()
 
     def generate_cf_table(self) -> pd.DataFrame:
         """
@@ -1115,7 +1036,9 @@ class EdgeLCIA(LCA):
         # Determine the matrix type
         is_biosphere = all("biosphere-technosphere" in cf for cf in self.cfs_data)
         print(f"Matrix type: {'biosphere' if is_biosphere else 'technosphere'}")
-        inventory = self.inventory if is_biosphere else self.technosphere_flow_matrix
+        inventory = (
+            self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+        )
 
         data = []
         non_zero_indices = self.characterization_matrix.nonzero()
