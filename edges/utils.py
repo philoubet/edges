@@ -11,6 +11,25 @@ import yaml
 from bw2calc import LCA
 from scipy.sparse import lil_matrix
 
+from functools import reduce
+import operator
+
+from bw2data import __version__ as bw2data_version
+
+if isinstance(bw2data_version, str):
+    bw2data_version = tuple(map(int, bw2data_version.split(".")))
+
+if bw2data_version >= (4, 0, 0):
+    from bw2data.backends import ActivityDataset as AD
+    from bw2data.subclass_mapping import NODE_PROCESS_CLASS_MAPPING
+else:
+    from bw2data.backends.peewee import ActivityDataset as AD
+
+    NODE_PROCESS_CLASS_MAPPING = None
+
+from bw2data import databases
+import numbers
+
 from .filesystem_constants import DATA_DIR
 
 
@@ -60,6 +79,28 @@ def check_method(impact_method: str) -> str:
     return impact_method
 
 
+def check_presence_of_required_fields(data: list):
+    """
+    Check if the required fields are present in the data.
+    :param data: The data to check.
+    :return: True if the required fields are present, False otherwise.
+    """
+
+    assert len(data) > 0, "No data provided."
+
+    for cf in data:
+        assert all(
+            x in cf for x in ["supplier", "consumer"]
+        ), f"Missing supplier or consumer in {cf}."
+        assert any(x in cf for x in ["value", "formula"])
+        assert "matrix" in cf["supplier"], f"Missing matrix fields in {cf['supplier']}."
+        assert "matrix" in cf["consumer"], f"Missing matrix fields in {cf['consumer']}."
+        assert any(
+            x.get("operator", "equals") in ["equals", "contains", "startswith"]
+            for x in [cf["supplier"], cf["consumer"]]
+        ), f"Invalid operator in {cf}."
+
+
 def format_data(data: list, weight: str) -> list:
     """
     Format the data for the LCIA method.
@@ -73,7 +114,8 @@ def format_data(data: list, weight: str) -> list:
                 if field == "categories":
                     cf[category][field] = tuple(value)
 
-    return add_population_and_gdp_data(data, weight)
+    check_presence_of_required_fields(data)
+    return add_population_and_gdp_data(data=data, weight=weight)
 
 
 def add_population_and_gdp_data(data: list, weight: str) -> list:
@@ -119,53 +161,95 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
     return lil_matrix(lca.technosphere_matrix.shape)
 
 
+def normalize_flow(flow):
+    """
+    Return a dictionary view of a flow object.
+
+    For current bw2data (>= 4.0.0), flow is already dict‑like.
+    For older versions, try to extract the underlying data from either:
+      - flow._data (if available)
+      - flow.data (if available)
+    and return it as a dict.
+    """
+    # Current version: already dict‑like.
+    if hasattr(flow, "get"):
+        try:
+            # Sometimes even if .get exists, the object might not be a pure dict.
+            # Test if iterating over it works.
+            iter(flow)
+            return flow
+        except TypeError:
+            pass
+    # Older version: check for _data attribute.
+    if hasattr(flow, "_data"):
+        data = flow._data
+        if isinstance(data, dict):
+            return data
+        try:
+            return dict(data)
+        except Exception:
+            pass
+    # Sometimes the underlying document holds the data.
+    if hasattr(flow, "data"):
+        data = flow.data
+        if isinstance(data, dict):
+            return data
+        try:
+            return dict(data)
+        except Exception:
+            pass
+    raise TypeError("Flow object does not support dict-like access.")
+
+
 def get_flow_matrix_positions(mapping: dict) -> list:
     """
-    Retrieve information about the flows in the given matrix using a batch query.
+    Retrieve information about the flows in the given matrix.
 
-    :param mapping: A dictionary where keys are activity identifiers (tuples like (database, code)
-                    or integers) and values are the desired positions.
-    :return: A list of dictionaries containing flow information and their positions.
+    This function works for both current and anterior bw2data versions.
+    It uses bw2data.get_activities() to batch query the flows, then builds
+    a lookup using normalized flow data. For flows from older versions, the data
+    is obtained from the _data attribute.
+
+    :param mapping: A dict mapping flow identifiers (either (database, code) tuples
+                    or integer IDs) to their positions.
+    :return: A list of dictionaries with flow information and their positions.
     """
-    # Batch retrieve flows using get_activities() from bw2data.
+    # Batch retrieve flows using get_activities() (assumed available in bw2data)
     keys = list(mapping.keys())
-    flows = get_activities(keys)
+    flows_objs = get_activities(keys)
 
-    # Create a lookup dictionary mapping each key to its flow.
-    # Here we assume that each flow contains 'database' and 'code' (if key is a tuple),
-    # or an 'id' field (if key is an integer).
+    # Build a lookup mapping both the numeric ID (if available) and (database, code)
+    # tuple to the original flow object.
     lookup = {}
-    for flow in flows:
-        try:
-            # If available, use
-            key_val = flow.get("id")
-        except (KeyError, TypeError):
-            # Otherwise, fall back to (database, code) as the key.
-            key_val = (flow["database"], flow["code"])
-        lookup[key_val] = flow
+    for flow in flows_objs:
+        data = normalize_flow(flow)
+        if "id" in data:
+            lookup[data["id"]] = flow
+        if "database" in data and "code" in data:
+            lookup[(data["database"], data["code"])] = flow
 
-    # Build the list of flows with their associated positions.
     result = []
     for k, pos in mapping.items():
-        # Attempt to find the flow using the key as given.
         flow = lookup.get(k)
+        if flow is None and isinstance(k, tuple) and len(k) == 2:
+            # Fallback: try to find a match manually.
+            for f in flows_objs:
+                data = normalize_flow(f)
+                if data.get("database") == k[0] and data.get("code") == k[1]:
+                    flow = f
+                    break
         if flow is None:
-            # Fallback: if the key is a tuple but not found, try matching based on the code
-            if isinstance(k, tuple) and len(k) == 2:
-                flow = next((f for f in flows if f.get("code") == k[1]), None)
-        if flow is None:
-            print(f"Flow with key {k} not found.")
-            continue
-
+            raise KeyError(f"Flow with key {k} not found.")
+        data = normalize_flow(flow)
         result.append(
             {
-                "name": flow["name"],
-                "reference product": flow.get("reference product"),
-                "categories": flow.get("categories"),
-                "unit": flow.get("unit"),
-                "location": flow.get("location"),
-                "classifications": flow.get("classifications"),
-                "type": flow.get("type"),
+                "name": data.get("name"),
+                "reference product": data.get("reference product"),
+                "categories": data.get("categories"),
+                "unit": data.get("unit"),
+                "location": data.get("location"),
+                "classifications": data.get("classifications"),
+                "type": data.get("type"),
                 "position": pos,
             }
         )
@@ -210,7 +294,12 @@ def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> l
     )
 
     # remove the cfs with locations not found in the database
-    return [cf for cf in cfs if cf["consumer"].get("location") in locations_available]
+    for cf in cfs:
+        if "location" in cf["consumer"]:
+            location = cf["consumer"]["location"]
+            if location not in locations_available:
+                cfs.remove(cf)
+    return cfs
 
 
 def get_activities(keys, **kwargs):
@@ -218,29 +307,27 @@ def get_activities(keys, **kwargs):
     Retrieve multiple activity objects in a single SQL query.
 
     Args:
-        keys: A list (or other iterable) of keys. Each key can be either:
-              - A tuple (database, code), or
-              - An integer (the activity id)
-        **kwargs: Additional filtering criteria, if needed.
+        keys: An iterable of keys, each being either a tuple (database, code)
+              or an integer (the activity id).
+        **kwargs: Additional filtering criteria.
 
     Returns:
-        A list of activity objects.
+        A list of activity objects. For bw2data >= 4.0.0 they are wrapped via
+        NODE_PROCESS_CLASS_MAPPING, and for earlier versions the raw objects are returned.
     """
-    from bw2data.backends import ActivityDataset as AD
-    from bw2data.subclass_mapping import NODE_PROCESS_CLASS_MAPPING
-    from bw2data import databases
-    import numbers
 
-    # Ensure keys is a list
-    if not isinstance(keys, (list, tuple, set)):
-        raise TypeError("keys must be a list, tuple, or set")
-
-    keys = list(keys)  # Ensure subscriptability
+    keys = list(keys)
     qs = AD.select()
 
-    # If keys are tuples, assume they are (database, code) pairs.
+    # If keys are tuples, group by database and use an IN clause on code.
     if all(isinstance(k, tuple) for k in keys):
-        qs = qs.where((AD.database, AD.code).in_(keys))
+        groups = {}
+        for db, code in keys:
+            groups.setdefault(db, []).append(code)
+        conditions = []
+        for db, codes in groups.items():
+            conditions.append((AD.database == db) & (AD.code.in_(codes)))
+        qs = qs.where(reduce(operator.or_, conditions))
     # If keys are integers, assume they are activity ids.
     elif all(isinstance(k, numbers.Integral) for k in keys):
         qs = qs.where(AD.id.in_(keys))
@@ -249,8 +336,8 @@ def get_activities(keys, **kwargs):
             "All keys must be either tuples (database, code) or integers (ids)."
         )
 
-    # If additional kwargs are provided, add those filters.
-    mapping = {
+    # Apply additional filtering from kwargs.
+    field_mapping = {
         "id": AD.id,
         "code": AD.code,
         "database": AD.database,
@@ -260,19 +347,33 @@ def get_activities(keys, **kwargs):
         "type": AD.type,
     }
     for key, value in kwargs.items():
-        if key in mapping:
-            qs = qs.where(mapping[key] == value)
+        if key in field_mapping:
+            qs = qs.where(field_mapping[key] == value)
 
-    # Retrieve all nodes and wrap them in the proper node class.
     nodes = []
     for obj in qs:
-        backend = databases[obj.database].get("backend", "sqlite")
-        cls = NODE_PROCESS_CLASS_MAPPING[backend]
-        nodes.append(cls(obj))
+        if NODE_PROCESS_CLASS_MAPPING is not None:
+            backend = databases[obj.database].get("backend", "sqlite")
+            cls = NODE_PROCESS_CLASS_MAPPING.get(backend, lambda x: x)
+            nodes.append(cls(obj))
+        else:
+            nodes.append(obj)
 
-    # Optionally, verify that all requested keys were found
-    # (if uniqueness is expected, you might want to raise an error if some keys are missing)
     if len(nodes) != len(keys):
         raise Exception("Not all requested activity objects were found.")
 
     return nodes
+
+
+def load_missing_geographies():
+    """
+    Load missing geographies from the YAML file.
+    """
+    with open(
+        DATA_DIR / "metadata" / "missing_geographies.yaml", "r", encoding="utf-8"
+    ) as f:
+        return yaml.safe_load(f)
+
+
+def get_str(x):
+    return x if isinstance(x, str) else x[-1]
