@@ -6,10 +6,9 @@ LCIA class.
 
 from collections import defaultdict
 import logging
-from pathlib import Path
 import json
 from typing import Optional
-
+from pathlib import Path
 import bw2calc
 import numpy as np
 
@@ -20,6 +19,7 @@ from prettytable import PrettyTable
 import bw2data
 from tqdm import tqdm
 from textwrap import fill
+from functools import lru_cache
 
 from .utils import (
     format_data,
@@ -129,11 +129,12 @@ def find_constituting_region(
 ) -> float:
 
     try:
-        constituting_regions = [
-            get_str(g)
-            for g in geo.within(subset, biggest_first=False)
-            if get_str(g) in weight and get_str(g) != subset
-        ]
+        constituting_regions = []
+        for e in geo.within(subset, biggest_first=False):
+            e_str = get_str(e)
+            if e_str in weight and e != subset:
+                constituting_regions.append(e_str)
+
         if len(constituting_regions) > 1:
             constituting_regions = constituting_regions[:1]
 
@@ -168,19 +169,19 @@ def find_region_constituents(
     """
 
     if region in missing_geographies:
-        constituents = [
-            get_str(g)
-            for g in missing_geographies[region]
-            if weight.get(get_str(g), 0) > 0 and get_str(g) != region
-        ]
+        constituents = []
+        for e in missing_geographies[region]:
+            e_str = get_str(e)
+            if weight.get(e_str, 0) > 0 and e_str != region:
+                constituents.append(e_str)
 
     else:
         try:
-            constituents = [
-                get_str(g)
-                for g in geo.contained(region)
-                if weight.get(get_str(g), 0) > 0 and get_str(g) != region
-            ]
+            constituents = []
+            for e in geo.contained(region):
+                e_str = get_str(e)
+                if weight.get(e_str, 0) > 0 and e_str != region:
+                    constituents.append(e_str)
         except KeyError:
             logger.info(f"Region: {region}. No geometry found.")
             return 0
@@ -233,7 +234,8 @@ def build_index(lookup: dict, required_fields: set) -> dict:
     return index
 
 
-def match_operator(value, target, operator: str) -> bool:
+@lru_cache(maxsize=100000)
+def match_operator(value: str, target: str, operator: str) -> bool:
     """
     Implements matching for three operator types:
       - "equals": value == target
@@ -309,6 +311,25 @@ def match_with_index(
     return matches
 
 
+def add_cf_entry(cf_data, supplier_info, consumer_info, direction, indices, value):
+    cf_data.append(
+        {
+            "supplier": supplier_info,
+            "consumer": consumer_info,
+            direction: indices,
+            "value": value,
+        }
+    )
+
+
+def default_geo(constituent):
+    return [get_str(e) for e in geo.contained(constituent)]
+
+
+def nested_dict():
+    return defaultdict(dict)
+
+
 class EdgeLCIA:
     """
     Class that implements the calculation of the regionalized life cycle impact assessment (LCIA) results.
@@ -319,8 +340,8 @@ class EdgeLCIA:
         self,
         demand: dict,
         method: Optional[tuple] = None,
-        weight: Optional[dict] = "population",
-        lcia_data_file: Optional[Path] = None,
+        weight: Optional[str] = "population",
+        filepath: Optional[str] = None,
     ):
         """
         Initialize the SpatialLCA class, ensuring `method` is not passed to
@@ -329,7 +350,7 @@ class EdgeLCIA:
 
         self.score = None
         self.cfs_number = None
-        self.lcia_data_file = lcia_data_file
+        self.filepath = Path(filepath) if filepath else None
         self.reversed_biosphere = None
         self.reversed_activity = None
         self.characterization_matrix = None
@@ -403,12 +424,13 @@ class EdgeLCIA:
         """
         Load the data for the LCIA method.
         """
-        self.lcia_data_file = DATA_DIR / f"{'_'.join(self.method)}.json"
+        if self.filepath is None:
+            self.filepath = DATA_DIR / f"{'_'.join(self.method)}.json"
 
-        if not self.lcia_data_file.is_file():
-            raise FileNotFoundError(f"Data file not found: {self.lcia_data_file}")
+        if not self.filepath.is_file():
+            raise FileNotFoundError(f"Data file not found: {self.filepath}")
 
-        with open(self.lcia_data_file, "r", encoding="utf-8") as f:
+        with open(self.filepath, "r", encoding="utf-8") as f:
             self.cfs_data = format_data(data=json.load(f), weight=self.weight)
             self.cfs_number = len(set([x.get("value") for x in self.cfs_data]))
             self.cfs_data = check_database_references(
@@ -494,13 +516,13 @@ class EdgeLCIA:
                     )
                     if new_cf != 0:
                         unprocessed_locations_cache[location][supplier_idx] = new_cf
-                        self.cfs_data.append(
-                            {
-                                "supplier": supplier_info,
-                                "consumer": consumer_info,
-                                direction: [(supplier_idx, consumer_idx)],
-                                "value": new_cf,
-                            }
+                        add_cf_entry(
+                            cf_data=self.cfs_data,
+                            supplier_info=supplier_info,
+                            consumer_info=consumer_info,
+                            direction=direction,
+                            indices=[(supplier_idx, consumer_idx)],
+                            value=new_cf,
                         )
 
         def handle_dynamic_regions(
@@ -515,6 +537,8 @@ class EdgeLCIA:
             :return: None
             """
             print("Handling dynamic regions...")
+            geo_cache = defaultdict(lambda: None)
+
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
@@ -557,17 +581,15 @@ class EdgeLCIA:
                     extra_constituents = []
                     for constituent in constituents:
                         if constituent not in weight:
+                            # Only compute once if not already in the cache
+                            if geo_cache[constituent] is None:
+                                geo_cache[constituent] = default_geo(constituent)
                             extras = [
-                                get_str(e)
-                                for e in geo_cache.get(
-                                    constituent, geo.contained(constituent)
-                                )
-                                if get_str(e) in weight and e != constituent
+                                e
+                                for e in geo_cache[constituent]
+                                if e in weight and e != constituent
                             ]
                             extra_constituents.extend(extras)
-                            geo_cache[constituent] = extras
-
-                    constituents.extend(extra_constituents)
 
                     new_cf = compute_average_cf(
                         constituents=constituents,
@@ -584,14 +606,15 @@ class EdgeLCIA:
                     )
 
                     if new_cf:
-                        self.cfs_data.append(
-                            {
-                                "supplier": supplier_info,
-                                "consumer": consumer_info,
-                                direction: [(supplier_idx, consumer_idx)],
-                                "value": new_cf,
-                            }
+                        add_cf_entry(
+                            cf_data=self.cfs_data,
+                            supplier_info=supplier_info,
+                            consumer_info=consumer_info,
+                            direction=direction,
+                            indices=[(supplier_idx, consumer_idx)],
+                            value=new_cf,
                         )
+
                     else:
                         self.ignored_locations.add(location)
 
@@ -608,7 +631,7 @@ class EdgeLCIA:
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
 
-                new_cf = unprocessed_locations_cache.get(location, {}).get(
+                new_cf = unprocessed_locations_cache[location].get(
                     supplier_idx
                 ) or find_constituting_region(
                     subset=location,
@@ -616,15 +639,16 @@ class EdgeLCIA:
                     weight=weight,
                     cfs=cfs_lookup,
                 )
+
                 if new_cf != 0:
                     unprocessed_locations_cache[location][supplier_idx] = new_cf
-                    self.cfs_data.append(
-                        {
-                            "supplier": supplier_info,
-                            "consumer": consumer_info,
-                            direction: [(supplier_idx, consumer_idx)],
-                            "value": new_cf,
-                        }
+                    add_cf_entry(
+                        cf_data=self.cfs_data,
+                        supplier_info=supplier_info,
+                        consumer_info=consumer_info,
+                        direction=direction,
+                        indices=[(supplier_idx, consumer_idx)],
+                        value=new_cf,
                     )
 
         # Constants for ignored fields
@@ -737,7 +761,6 @@ class EdgeLCIA:
             for i in self.cfs_data
             if i.get("consumer").get("location")
         }
-        geo_cache = {}
 
         if len(unprocessed_biosphere_edges) > 0:
             handle_static_regions(
@@ -799,20 +822,23 @@ class EdgeLCIA:
         # if there are unprocessed edges left
         # we need to check whether some locations may not be a subset
         # of a wider region (e.g., AT is part of RER)
+
         if unprocessed_biosphere_edges:
+            unprocessed_locations_cache = defaultdict(nested_dict)
             handle_region_subset(
                 direction="biosphere-technosphere",
                 unprocessed_edges=list(unprocessed_biosphere_edges),
                 cfs_lookup=cfs_lookup,
-                unprocessed_locations_cache=defaultdict(dict),
+                unprocessed_locations_cache=unprocessed_locations_cache,
             )
 
         if unprocessed_technosphere_edges:
+            unprocessed_locations_cache = defaultdict(nested_dict)
             handle_region_subset(
                 direction="technosphere-technosphere",
                 unprocessed_edges=list(unprocessed_technosphere_edges),
                 cfs_lookup=cfs_lookup,
-                unprocessed_locations_cache=defaultdict(dict),
+                unprocessed_locations_cache=unprocessed_locations_cache,
             )
 
         unprocessed_biosphere_edges = (
@@ -850,13 +876,13 @@ class EdgeLCIA:
                     )
 
                     if new_cf:
-                        self.cfs_data.append(
-                            {
-                                "supplier": supplier_info,
-                                "consumer": consumer_info,
-                                direction: [(supplier_idx, consumer_idx)],
-                                "value": new_cf,
-                            }
+                        add_cf_entry(
+                            cf_data=self.cfs_data,
+                            supplier_info=supplier_info,
+                            consumer_info=consumer_info,
+                            direction=direction,
+                            indices=[(supplier_idx, consumer_idx)],
+                            value=new_cf,
                         )
 
         self.print_summary_table(
@@ -907,7 +933,7 @@ class EdgeLCIA:
             ]
         )
         rows.append(["Method name", fill(str(self.method), width=45)])
-        rows.append(["Data file", fill(self.lcia_data_file.stem, width=45)])
+        rows.append(["Data file", fill(self.filepath.stem, width=45)])
         rows.append(["Unique CFs in method", self.cfs_number])
         rows.append(
             ["Unique CFs used", len(list(set([x["value"] for x in self.cfs_data])))]
