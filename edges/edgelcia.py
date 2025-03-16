@@ -159,13 +159,13 @@ def find_constituting_region(
 
 
 def find_region_constituents(
-    region: str, supplier_info: dict, cfs: dict, weight: dict
+    region: str, supplier_info: dict, cfs_lookup: dict, weight: dict
 ) -> float:
     """
     Find the constituents of the region.
     :param region: The region to evaluate.
     :param supplier_info: Information about the supplier.
-    :param cfs: Lookup dictionary for characterization factors.
+    :param cfs_lookup: Lookup dictionary for characterization factors.
     :param weight: Weights for the constituents.
     :return: The new CF value.
     """
@@ -188,7 +188,9 @@ def find_region_constituents(
             logger.info(f"Region: {region}. No geometry found.")
             return 0
 
-    new_cfs = compute_average_cf(constituents, supplier_info, weight, cfs, region)
+    new_cfs = compute_average_cf(
+        constituents, supplier_info, weight, cfs_lookup, region
+    )
 
     if len(constituents) == 0:
         return 0
@@ -212,6 +214,8 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
         key = tuple(
             (k, v) for k, v in flow.items() if k in mandatory_fields and v is not None
         )
+        # add key to lookup if fields and values match requirements
+
         lookup.setdefault(key, []).append(flow["position"])
     return lookup
 
@@ -385,9 +389,7 @@ class EdgeLCIA:
             list(zip(*self.technosphere_flow_matrix.nonzero()))
         )
         self.biosphere_edges = set(list(zip(*self.lca.inventory.nonzero())))
-
         unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
-
         self.biosphere_flows = get_flow_matrix_positions(
             {
                 k: v
@@ -515,7 +517,7 @@ class EdgeLCIA:
                     ) or find_region_constituents(
                         region=location,
                         supplier_info=supplier_info,
-                        cfs=cfs_lookup,
+                        cfs_lookup=cfs_lookup,
                         weight=weight,
                     )
                     if new_cf != 0:
