@@ -52,41 +52,41 @@ missing_geographies = load_missing_geographies()
 
 
 def compute_average_cf(
-    constituents: list,
+    candidates: list,
     supplier_info: dict,
     weight: dict,
     cfs_lookup: dict,
-    region: str,
+    location: str,
 ):
     """
     Compute the average characterization factors for the region.
-    :param constituents: List of constituent regions.
+    :param candidates: List of constituent regions.
     :param supplier_info: Information about the supplier.
     :param weight: Weights for the constituents.
     :param cfs_lookup: Lookup dictionary for characterization factors.
-    :param region: The region being evaluated.
+    :param location: The region being evaluated.
     :return: The weighted average CF value.
     """
 
     # Filter constituents with valid weights
-    if len(constituents) == 0:
-        return 0
-    elif len(constituents) == 1:
-        valid_constituents = [(constituents[0], 1)]
+    if len(candidates) == 0:
+        return 0, None
+    elif len(candidates) == 1:
+        valid_candidates = [(candidates[0], 1)]
     else:
-        valid_constituents = [(c, weight[c]) for c in constituents if c in weight]
+        valid_candidates = [(c, weight[c]) for c in candidates if c in weight]
 
-    if not valid_constituents:
-        return 0
+    if not valid_candidates:
+        return 0, None
 
     # Separate constituents and weights
-    constituents, weight_array = zip(*valid_constituents)
+    candidates, weight_array = zip(*valid_candidates)
     weight_array = np.array(weight_array)
 
     # Normalize weights
     weight_sum = weight_array.sum()
     if weight_sum == 0:
-        return 0
+        return 0, None
     shares = weight_array / weight_sum
 
     # Pre-filter supplier keys for filtering
@@ -109,97 +109,80 @@ def compute_average_cf(
 
     # Compute the weighted average CF value
     value = 0
-    for loc, share in zip(constituents, shares):
+    details = []
+    for loc, share in zip(candidates, shares):
         loc_cfs = cfs_lookup.get(loc, [])
 
         # Filter CFs based on supplier info using the operator logic
         filtered_cfs = [cf["value"] for cf in loc_cfs if match_supplier(cf)]
 
-        value += share * sum(filtered_cfs)
+        if len(filtered_cfs) == 0:
+            raise ValueError(f"No CFs found for {supplier_info} for {loc} in {loc_cfs}")
+        if len(filtered_cfs) > 1:
+            raise ValueError(f"Multiple CFs found for {supplier_info} in {loc}")
+
+        value += share * filtered_cfs[0]
+        details.append([loc, share, filtered_cfs[0]])
 
     # Log if shares don't sum to 1 due to precision issues
     if not np.isclose(shares.sum(), 1):
         logger.info(
-            f"Shares for {region} do not sum to 1 " f"but {shares.sum()}: {shares}"
+            f"Shares for {location} do not sum to 1 but {shares.sum()}: {shares}"
         )
 
-    return value
+    return (value, details)
 
 
-def find_constituting_region(
-    subset: str, supplier_info: dict, weight: dict, cfs: dict
-) -> float:
-
-    try:
-        constituting_regions = []
-        for e in geo.within(subset, biggest_first=False):
-            e_str = get_str(e)
-            if e_str in weight and e != subset:
-                constituting_regions.append(e_str)
-
-        if len(constituting_regions) > 1:
-            constituting_regions = constituting_regions[:1]
-
-    except KeyError:
-        logger.info(f"Region: {subset}. No geometry found.")
-        return 0
-
-    new_cfs = compute_average_cf(
-        constituting_regions, supplier_info, weight, cfs, subset
-    )
-
-    if len(constituting_regions) == 0:
-        return 0
-
-    logger.info(
-        f"Region: {subset}. New CF: {new_cfs}. Constituting region(s): {constituting_regions}"
-    )
-
-    return new_cfs
-
-
-def find_region_constituents(
-    region: str, supplier_info: dict, cfs_lookup: dict, weight: dict
-) -> float:
+@lru_cache(maxsize=100000)
+def find_locations(
+    location: str,
+    weights_available: tuple,
+    containing: bool = True,
+    exceptions: [tuple, None] = None,
+) -> list:
     """
-    Find the constituents of the region.
-    :param region: The region to evaluate.
+    Find the locations containing or contained by a given location.
+    :param location: The location to evaluate.
     :param supplier_info: Information about the supplier.
-    :param cfs_lookup: Lookup dictionary for characterization factors.
-    :param weight: Weights for the constituents.
-    :return: The new CF value.
+    :param weights_available: List of locations for which a weight is available.
+    :param cfs: Lookup dictionary for characterization factors.
+    :param containing: If True, find containing locations; otherwise, find contained locations.
+    :return: The new characterization factor.
     """
 
-    if region in missing_geographies:
-        constituents = []
-        for e in missing_geographies[region]:
-            e_str = get_str(e)
-            if weight.get(e_str, 0) > 0 and e_str != region:
-                constituents.append(e_str)
+    geo_func = geo.contained if containing is True else geo.within
+    results = []
 
+    if location in missing_geographies:
+        for e in missing_geographies[location]:
+            e_str = get_str(e)
+            if e_str in weights_available and e_str != location:
+                results.append(e_str)
     else:
         try:
-            constituents = []
-            for e in geo.contained(region):
+            for e in geo_func(
+                key=location,
+                biggest_first=False,
+                exclusive=True if containing is True else False,
+                include_self=False,
+            ):
                 e_str = get_str(e)
-                if weight.get(e_str, 0) > 0 and e_str != region:
-                    constituents.append(e_str)
+                if (
+                    e_str in weights_available
+                    and e_str != location
+                    and (exceptions is None or e_str not in exceptions)
+                ):
+                    results.append(e_str)
+
         except KeyError:
-            logger.info(f"Region: {region}. No geometry found.")
-            return 0
+            logger.info(f"Region: {location}. No geometry found.")
 
-    new_cfs = compute_average_cf(
-        constituents, supplier_info, weight, cfs_lookup, region
-    )
+    if containing is True:
+        logger.info(f"Region: {location} minus {exceptions} contains: {results}")
+    else:
+        logger.info(f"Region: {location} minus {exceptions} is contained by: {results}")
 
-    if len(constituents) == 0:
-        return 0
-
-    logger.info(
-        f"Region: {region}. New CF: {new_cfs}. Constituents: {constituents}. Weights: {[weight[c] for c in constituents]}"
-    )
-
-    return new_cfs
+    return results
 
 
 def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
@@ -439,9 +422,6 @@ class EdgeLCIA:
         with open(self.filepath, "r", encoding="utf-8") as f:
             self.cfs_data = format_data(data=json.load(f), weight=self.weight)
             self.cfs_number = len(set([x.get("value") for x in self.cfs_data]))
-            self.cfs_data = check_database_references(
-                self.cfs_data, self.technosphere_flows, self.biosphere_flows
-            )
 
     def identify_exchanges(self):
         """
@@ -512,14 +492,19 @@ class EdgeLCIA:
 
                 if location not in ("RoW", "RoE"):
                     # Resolve from cache or compute new CF
-                    new_cf = unprocessed_locations_cache.get(location, {}).get(
-                        supplier_idx
-                    ) or find_region_constituents(
-                        region=location,
-                        supplier_info=supplier_info,
-                        cfs_lookup=cfs_lookup,
-                        weight=weight,
+                    locations = find_locations(
+                        location=location,
+                        weights_available=tuple(weight.keys()),
                     )
+
+                    new_cf, _ = compute_average_cf(
+                        candidates=locations,
+                        supplier_info=supplier_info,
+                        weight=weight,
+                        cfs_lookup=cfs_lookup,
+                        location=location,
+                    )
+
                     if new_cf != 0:
                         unprocessed_locations_cache[location][supplier_idx] = new_cf
                         add_cf_entry(
@@ -543,7 +528,6 @@ class EdgeLCIA:
             :return: None
             """
             print("Handling dynamic regions...")
-            geo_cache = defaultdict(lambda: None)
 
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(reversed_supplier_lookup[supplier_idx])
@@ -567,48 +551,18 @@ class EdgeLCIA:
                         if loc not in ["RoW", "RoE"] and loc in weight
                     ]
 
-                    # constituents are all the candidates in the World (or in Europe)
-                    # minus those in other_than_RoW_RoE
+                    locations = find_locations(
+                        location="GLO",
+                        weights_available=tuple(weight.keys()),
+                        exceptions=tuple(other_than_RoW_RoE),
+                    )
 
-                    if location == "RoW":
-                        constituents = list(
-                            set(list(weight.keys())) - set(other_than_RoW_RoE)
-                        )
-                    else:
-                        # RoE
-                        # redefine other_than_RoW_RoE to limit to EU candidates
-                        other_than_RoW_RoE = [
-                            loc for loc in other_than_RoW_RoE if geo.contained("RER")
-                        ]
-                        constituents = list(
-                            set(geo.contained("RER")) - set(other_than_RoW_RoE)
-                        )
-
-                    extra_constituents = []
-                    for constituent in constituents:
-                        if constituent not in weight:
-                            # Only compute once if not already in the cache
-                            if geo_cache[constituent] is None:
-                                geo_cache[constituent] = default_geo(constituent)
-                            extras = [
-                                e
-                                for e in geo_cache[constituent]
-                                if e in weight and e != constituent
-                            ]
-                            extra_constituents.extend(extras)
-
-                    new_cf = compute_average_cf(
-                        constituents=constituents,
+                    new_cf, details = compute_average_cf(
+                        candidates=locations,
                         supplier_info=supplier_info,
                         weight=weight,
                         cfs_lookup=cfs_lookup,
-                        region=location,
-                    )
-
-                    logger.info(
-                        f"Region: {location}. Consumer: {name} / {reference_product}. "
-                        f"New CF: {new_cf}. "
-                        f"Constituting region(s) ({len(constituents)}): {constituents}"
+                        location=location,
                     )
 
                     if new_cf:
@@ -637,13 +591,17 @@ class EdgeLCIA:
                 consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
 
-                new_cf = unprocessed_locations_cache[location].get(
-                    supplier_idx
-                ) or find_constituting_region(
-                    subset=location,
+                locations = find_locations(
+                    location=location,
+                    weights_available=tuple(weight.keys()),
+                    containing=False,
+                )
+                new_cf, _ = compute_average_cf(
+                    candidates=locations,
                     supplier_info=supplier_info,
                     weight=weight,
-                    cfs=cfs_lookup,
+                    cfs_lookup=cfs_lookup,
+                    location=location,
                 )
 
                 if new_cf != 0:
@@ -865,20 +823,17 @@ class EdgeLCIA:
                     supplier_info = dict(reversed_supplier_lookup[supplier_idx])
                     consumer_info = dict(reversed_consumer_lookup[consumer_idx])
                     location = consumer_info.get("location")
-                    constituents = list(weight.keys())
 
-                    new_cf = compute_average_cf(
-                        constituents=constituents,
+                    locations = find_locations(
+                        location="GLO",
+                        weights_available=tuple(weight.keys()),
+                    )
+                    new_cf, _ = compute_average_cf(
+                        candidates=locations,
                         supplier_info=supplier_info,
                         weight=weight,
                         cfs_lookup=cfs_lookup,
-                        region=location,
-                    )
-
-                    logger.info(
-                        f"Region: {location}. "
-                        f"New CF: {new_cf}. "
-                        f"Constituting region(s) ({len(constituents)}): {constituents}"
+                        location=location,
                     )
 
                     if new_cf:
@@ -1069,7 +1024,9 @@ class EdgeLCIA:
         is_biosphere = all("biosphere-technosphere" in cf for cf in self.cfs_data)
         print(f"Matrix type: {'biosphere' if is_biosphere else 'technosphere'}")
         inventory = (
-            self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+            self.lca.inventory
+            if is_biosphere is True
+            else self.technosphere_flow_matrix
         )
 
         data = []
@@ -1094,7 +1051,7 @@ class EdgeLCIA:
             }
 
             # Add supplier-specific fields based on matrix type
-            if is_biosphere:
+            if is_biosphere is True:
                 entry.update({"supplier categories": supplier.get("categories")})
             else:
                 entry.update(
