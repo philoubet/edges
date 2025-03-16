@@ -109,7 +109,7 @@ def compute_average_cf(
 
     # Compute the weighted average CF value
     value = 0
-    details = []
+
     for loc, share in zip(candidates, shares):
         loc_cfs = cfs_lookup.get(loc, [])
 
@@ -122,7 +122,6 @@ def compute_average_cf(
             raise ValueError(f"Multiple CFs found for {supplier_info} in {loc}")
 
         value += share * filtered_cfs[0]
-        details.append([loc, share, filtered_cfs[0]])
 
     # Log if shares don't sum to 1 due to precision issues
     if not np.isclose(shares.sum(), 1):
@@ -130,7 +129,7 @@ def compute_average_cf(
             f"Shares for {location} do not sum to 1 but {shares.sum()}: {shares}"
         )
 
-    return (value, details)
+    return value
 
 
 @lru_cache(maxsize=100000)
@@ -339,6 +338,8 @@ class EdgeLCIA:
         `prepare_lca_inputs` while still being available in the class.
         """
 
+        self.unprocessed_technosphere_edges = []
+        self.unprocessed_biosphere_edges = []
         self.score = None
         self.cfs_number = None
         self.filepath = Path(filepath) if filepath else None
@@ -347,7 +348,7 @@ class EdgeLCIA:
         self.characterization_matrix = None
         self.method = method  # Store the method argument in the instance
         self.position_to_technosphere_flows_lookup = None
-        self.technosphere_flows_lookup = None
+        self.technosphere_flows_lookup = defaultdict(list)
         self.technosphere_edges = None
         self.technosphere_flow_matrix = None
         self.biosphere_edges = None
@@ -362,6 +363,7 @@ class EdgeLCIA:
         self.weight: str = weight
 
         self.lca = bw2calc.LCA(demand=demand)
+        self.load_lcia_data()
 
     def lci(self) -> None:
 
@@ -423,81 +425,84 @@ class EdgeLCIA:
             self.cfs_data = format_data(data=json.load(f), weight=self.weight)
             self.cfs_number = len(set([x.get("value") for x in self.cfs_data]))
 
-    def identify_exchanges(self):
+    def update_unprocessed_edges(self):
+
+        # Process edges
+
+        edges = {
+            (f[0], f[1])
+            for cf in self.cfs_data
+            for f in cf.get("biosphere-technosphere", [])
+            if f
+        }
+
+        if edges:
+            supplier_bio_tech_edges, consumer_bio_tech_edges = map(set, zip(*edges))
+        else:
+            supplier_bio_tech_edges, consumer_bio_tech_edges = set(), set()
+
+        edges = {
+            (f[0], f[1])
+            for cf in self.cfs_data
+            for f in cf.get("technosphere-technosphere", [])
+            if f
+        }
+
+        if edges:
+            supplier_tech_tech_edges, consumer_tech_tech_edges = map(set, zip(*edges))
+        else:
+            supplier_tech_tech_edges, consumer_tech_tech_edges = set(), set()
+
+        self.unprocessed_biosphere_edges = [
+            edge
+            for edge in self.biosphere_edges
+            if edge[0] in supplier_bio_tech_edges
+            and edge[1] not in consumer_bio_tech_edges
+        ]
+        self.unprocessed_technosphere_edges = [
+            edge
+            for edge in self.technosphere_edges
+            if edge[0] in supplier_tech_tech_edges
+            and edge[1] not in consumer_tech_tech_edges
+        ]
+
+    def map_aggregate_locations(self) -> None:
         """
-        Based on search criteria under `supplier` and `consumer` keys,
-        identify the exchanges in the inventory matrix.
+        Handle static regions and update CF data (e.g., RER, GLO, ENTSOE, etc.).
+        CFs are obtained by averaging the CFs of the constituents of the region.
+
+        :return: None
         """
 
-        def preprocess_lookups():
-            """
-            Preprocess supplier and consumer flows into lookup dictionaries.
-            """
-            supplier_lookup = preprocess_flows(
-                flows_list=(
-                    self.biosphere_flows
-                    if all(
-                        cf["supplier"].get("matrix") == "biosphere"
-                        for cf in self.cfs_data
-                    )
-                    else self.technosphere_flows
-                ),
-                mandatory_fields=required_supplier_fields,
+        weight = {
+            i.get("consumer").get("location"): i.get("consumer").get("weight")
+            for i in self.cfs_data
+            if i.get("consumer").get("location")
+        }
+
+        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        print("Handling static regions...")
+
+        for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
+            unprocessed_edges = (
+                self.unprocessed_biosphere_edges
+                if direction == "biosphere-technosphere"
+                else self.unprocessed_technosphere_edges
             )
-
-            consumer_lookup = preprocess_flows(
-                flows_list=self.technosphere_flows,
-                mandatory_fields=required_consumer_fields,
-            )
-
-            reversed_supplier_lookup = {
-                pos: key
-                for key, positions in supplier_lookup.items()
-                for pos in positions
-            }
-            reversed_consumer_lookup = {
-                pos: key
-                for key, positions in consumer_lookup.items()
-                for pos in positions
-            }
-
-            return (
-                supplier_lookup,
-                consumer_lookup,
-                reversed_supplier_lookup,
-                reversed_consumer_lookup,
-            )
-
-        def handle_static_regions(
-            direction: str,
-            unprocessed_edges: list,
-            cfs_lookup: dict,
-            unprocessed_locations_cache: dict,
-        ) -> None:
-            """
-            Handle static regions and update CF data (e.g., RER, GLO, ENTSOE, etc.).
-            CFs are obtained by averaging the CFs of the constituents of the region.
-
-            :param direction: The direction of the flow.
-            :param unprocessed_edges: The unprocessed edges.
-            :param cfs_lookup: The lookup dictionary for CFs.
-            :param unprocessed_locations_cache: The cache for unprocessed locations
-            :return: None
-            """
-            print("Handling static regions...")
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
-                supplier_info = dict(reversed_supplier_lookup[supplier_idx])
-                consumer_info = dict(reversed_consumer_lookup[consumer_idx])
+                supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
 
-                if location not in ("RoW", "RoE"):
+                if location not in ["RoW", "RoE"]:
                     # Resolve from cache or compute new CF
                     locations = find_locations(
                         location=location,
                         weights_available=tuple(weight.keys()),
                     )
 
-                    new_cf, _ = compute_average_cf(
+                    new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
                         weight=weight,
@@ -506,7 +511,6 @@ class EdgeLCIA:
                     )
 
                     if new_cf != 0:
-                        unprocessed_locations_cache[location][supplier_idx] = new_cf
                         add_cf_entry(
                             cf_data=self.cfs_data,
                             supplier_info=supplier_info,
@@ -516,25 +520,46 @@ class EdgeLCIA:
                             value=new_cf,
                         )
 
-        def handle_dynamic_regions(
-            direction: str, unprocessed_edges: list, cfs_lookup: dict
-        ) -> None:
-            """
-            Handle dynamic regions like RoW and RoE and update CF data.
+        self.update_unprocessed_edges()
 
-            :param direction: The direction of the flow.
-            :param unprocessed_edges: The unprocessed edges.
-            :param cfs_lookup: The lookup dictionary for CFs.
-            :return: None
-            """
-            print("Handling dynamic regions...")
+    def map_dynamic_locations(self) -> None:
+        """
+        Handle dynamic regions like RoW and RoE and update CF data.
+
+        :return: None
+        """
+
+        weight = {
+            i.get("consumer").get("location"): i.get("consumer").get("weight")
+            for i in self.cfs_data
+            if i.get("consumer").get("location")
+        }
+
+        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        self.position_to_technosphere_flows_lookup = {
+            i["position"]: {k: i[k] for k in i if k != "position"}
+            for i in self.technosphere_flows
+        }
+        for flow in self.technosphere_flows:
+            key = (flow["name"], flow.get("reference product"))
+            self.technosphere_flows_lookup[key].append(flow["location"])
+
+        print("Handling dynamic regions...")
+
+        for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
+            unprocessed_edges = (
+                self.unprocessed_biosphere_edges
+                if direction == "biosphere-technosphere"
+                else self.unprocessed_technosphere_edges
+            )
 
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
-                supplier_info = dict(reversed_supplier_lookup[supplier_idx])
-                consumer_info = dict(reversed_consumer_lookup[consumer_idx])
+                supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
 
-                if location in ("RoW", "RoE"):
+                if location in ["RoW", "RoE"]:
                     consumer_act = self.position_to_technosphere_flows_lookup[
                         consumer_idx
                     ]
@@ -557,7 +582,7 @@ class EdgeLCIA:
                         exceptions=tuple(other_than_RoW_RoE),
                     )
 
-                    new_cf, details = compute_average_cf(
+                    new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
                         weight=weight,
@@ -575,20 +600,31 @@ class EdgeLCIA:
                             value=new_cf,
                         )
 
-                    else:
-                        self.ignored_locations.add(location)
+        self.update_unprocessed_edges()
 
-        def handle_region_subset(
-            direction: str,
-            unprocessed_edges: list,
-            cfs_lookup: dict,
-            unprocessed_locations_cache: dict,
-        ) -> None:
+    def map_disaggregate_locations(
+        self,
+    ) -> None:
 
-            print("Handling unmatched locations...")
+        weight = {
+            i.get("consumer").get("location"): i.get("consumer").get("weight")
+            for i in self.cfs_data
+            if i.get("consumer").get("location")
+        }
+        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        print("Handling unmatched locations...")
+
+        for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
+            unprocessed_edges = (
+                self.unprocessed_biosphere_edges
+                if direction == "biosphere-technosphere"
+                else self.unprocessed_technosphere_edges
+            )
+
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
-                supplier_info = dict(reversed_supplier_lookup[supplier_idx])
-                consumer_info = dict(reversed_consumer_lookup[consumer_idx])
+                supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
 
                 locations = find_locations(
@@ -596,7 +632,7 @@ class EdgeLCIA:
                     weights_available=tuple(weight.keys()),
                     containing=False,
                 )
-                new_cf, _ = compute_average_cf(
+                new_cf = compute_average_cf(
                     candidates=locations,
                     supplier_info=supplier_info,
                     weight=weight,
@@ -605,7 +641,6 @@ class EdgeLCIA:
                 )
 
                 if new_cf != 0:
-                    unprocessed_locations_cache[location][supplier_idx] = new_cf
                     add_cf_entry(
                         cf_data=self.cfs_data,
                         supplier_info=supplier_info,
@@ -614,31 +649,112 @@ class EdgeLCIA:
                         indices=[(supplier_idx, consumer_idx)],
                         value=new_cf,
                     )
+        self.update_unprocessed_edges()
+
+    def map_remaining_locations_to_global(self) -> None:
+
+        weight = {
+            i.get("consumer").get("location"): i.get("consumer").get("weight")
+            for i in self.cfs_data
+            if i.get("consumer").get("location")
+        }
+        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        # if still unprocessed, we give them global CFs
+        print("Handling remaining exchanges...")
+
+        for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
+            unprocessed_edges = (
+                self.unprocessed_biosphere_edges
+                if direction == "biosphere-technosphere"
+                else self.unprocessed_technosphere_edges
+            )
+
+            for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
+                supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
+                location = consumer_info.get("location")
+
+                locations = find_locations(
+                    location="GLO",
+                    weights_available=tuple(weight.keys()),
+                )
+                new_cf = compute_average_cf(
+                    candidates=locations,
+                    supplier_info=supplier_info,
+                    weight=weight,
+                    cfs_lookup=cfs_lookup,
+                    location=location,
+                )
+
+                if new_cf:
+                    add_cf_entry(
+                        cf_data=self.cfs_data,
+                        supplier_info=supplier_info,
+                        consumer_info=consumer_info,
+                        direction=direction,
+                        indices=[(supplier_idx, consumer_idx)],
+                        value=new_cf,
+                    )
+        self.update_unprocessed_edges()
+
+    def preprocess_lookups(self):
+        """
+        Preprocess supplier and consumer flows into lookup dictionaries.
+        """
 
         # Constants for ignored fields
         IGNORED_FIELDS = {"matrix", "operator", "weight"}
 
         # Precompute required fields for faster access
-        required_supplier_fields = {
+        self.required_supplier_fields = {
             k
             for cf in self.cfs_data
             for k in cf["supplier"].keys()
             if k not in IGNORED_FIELDS
         }
-        required_consumer_fields = {
+        self.required_consumer_fields = {
             k
             for cf in self.cfs_data
             for k in cf["consumer"].keys()
             if k not in IGNORED_FIELDS
         }
 
+        self.supplier_lookup = preprocess_flows(
+            flows_list=(
+                self.biosphere_flows
+                if all(
+                    cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data
+                )
+                else self.technosphere_flows
+            ),
+            mandatory_fields=self.required_supplier_fields,
+        )
+
+        self.consumer_lookup = preprocess_flows(
+            flows_list=self.technosphere_flows,
+            mandatory_fields=self.required_consumer_fields,
+        )
+
+        self.reversed_supplier_lookup = {
+            pos: key
+            for key, positions in self.supplier_lookup.items()
+            for pos in positions
+        }
+        self.reversed_consumer_lookup = {
+            pos: key
+            for key, positions in self.consumer_lookup.items()
+            for pos in positions
+        }
+
+    def identify_exchanges(self):
+        """
+        Based on search criteria under `supplier` and `consumer` keys,
+        identify the exchanges in the inventory matrix.
+        """
+
         # Preprocess flows and lookups
-        (
-            supplier_lookup,
-            consumer_lookup,
-            reversed_supplier_lookup,
-            reversed_consumer_lookup,
-        ) = preprocess_lookups()
+        self.preprocess_lookups()
 
         edges = (
             self.biosphere_edges
@@ -646,8 +762,12 @@ class EdgeLCIA:
             else self.technosphere_edges
         )
 
-        supplier_index = build_index(supplier_lookup, required_supplier_fields)
-        consumer_index = build_index(consumer_lookup, required_consumer_fields)
+        supplier_index = build_index(
+            self.supplier_lookup, self.required_supplier_fields
+        )
+        consumer_index = build_index(
+            self.consumer_lookup, self.required_consumer_fields
+        )
 
         # tdqm progress bar
         print("Identifying eligible exchanges...")
@@ -656,16 +776,16 @@ class EdgeLCIA:
             supplier_candidates = match_with_index(
                 cf["supplier"],
                 supplier_index,
-                supplier_lookup,
-                required_supplier_fields,
+                self.supplier_lookup,
+                self.required_supplier_fields,
             )
 
             # Generate consumer candidates
             consumer_candidates = match_with_index(
                 cf["consumer"],
                 consumer_index,
-                consumer_lookup,
-                required_consumer_fields,
+                self.consumer_lookup,
+                self.required_consumer_fields,
             )
 
             # Create pairs of supplier and consumer candidates
@@ -676,190 +796,9 @@ class EdgeLCIA:
                 if (supplier, consumer) in edges
             ]
 
-        # Preprocess `self.technosphere_flows` once
-        if not self.technosphere_flows_lookup:
-            self.technosphere_flows_lookup = defaultdict(list)
-            for flow in self.technosphere_flows:
-                key = (flow["name"], flow.get("reference product"))
-                self.technosphere_flows_lookup[key].append(flow["location"])
-            self.position_to_technosphere_flows_lookup = {
-                i["position"]: {k: i[k] for k in i if k != "position"}
-                for i in self.technosphere_flows
-            }
+        self.update_unprocessed_edges()
 
-        cfs_lookup = preprocess_cfs(self.cfs_data)
-
-        # Process edges
-        supplier_bio_tech_edges = {
-            f[0] for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])
-        }
-        consumer_bio_tech_edges = {
-            f[1] for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])
-        }
-        supplier_tech_tech_edges = {
-            f[0]
-            for cf in self.cfs_data
-            for f in cf.get("technosphere-technosphere", [])
-        }
-        consumer_tech_tech_edges = {
-            f[1]
-            for cf in self.cfs_data
-            for f in cf.get("technosphere-technosphere", [])
-        }
-
-        unprocessed_biosphere_edges = [
-            edge
-            for edge in self.biosphere_edges
-            if edge[0] in supplier_bio_tech_edges
-            and edge[1] not in consumer_bio_tech_edges
-        ]
-        unprocessed_technosphere_edges = [
-            edge
-            for edge in self.technosphere_edges
-            if edge[0] in supplier_tech_tech_edges
-            and edge[1] not in consumer_tech_tech_edges
-        ]
-
-        weight = {
-            i.get("consumer").get("location"): i.get("consumer").get("weight")
-            for i in self.cfs_data
-            if i.get("consumer").get("location")
-        }
-
-        if len(unprocessed_biosphere_edges) > 0:
-            handle_static_regions(
-                "biosphere-technosphere",
-                unprocessed_biosphere_edges,
-                cfs_lookup,
-                defaultdict(dict),
-            )
-
-        if len(unprocessed_technosphere_edges) > 0:
-            handle_static_regions(
-                "technosphere-technosphere",
-                unprocessed_technosphere_edges,
-                cfs_lookup,
-                defaultdict(dict),
-            )
-
-        if len(unprocessed_biosphere_edges) > 0:
-            handle_dynamic_regions(
-                "biosphere-technosphere", unprocessed_biosphere_edges, cfs_lookup
-            )
-
-        if len(unprocessed_technosphere_edges) > 0:
-            handle_dynamic_regions(
-                "technosphere-technosphere", unprocessed_technosphere_edges, cfs_lookup
-            )
-
-        self.ignored_method_exchanges = [
-            cf
-            for cf in self.cfs_data
-            if not any(
-                [cf.get("biosphere-technosphere"), cf.get("technosphere-technosphere")]
-            )
-        ]
-
-        self.cfs_data = [
-            cf
-            for cf in self.cfs_data
-            if any(
-                [cf.get("biosphere-technosphere"), cf.get("technosphere-technosphere")]
-            )
-        ]
-
-        # figure out remaining unprocessed edges for information
-        processed_biosphere_edges = {
-            f for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])
-        }
-        processed_technosphere_edges = {
-            f for cf in self.cfs_data for f in cf.get("technosphere-technosphere", [])
-        }
-
-        unprocessed_biosphere_edges = (
-            set(unprocessed_biosphere_edges) - processed_biosphere_edges
-        )
-        unprocessed_technosphere_edges = (
-            set(unprocessed_technosphere_edges) - processed_technosphere_edges
-        )
-
-        # if there are unprocessed edges left
-        # we need to check whether some locations may not be a subset
-        # of a wider region (e.g., AT is part of RER)
-
-        if unprocessed_biosphere_edges:
-            unprocessed_locations_cache = defaultdict(nested_dict)
-            handle_region_subset(
-                direction="biosphere-technosphere",
-                unprocessed_edges=list(unprocessed_biosphere_edges),
-                cfs_lookup=cfs_lookup,
-                unprocessed_locations_cache=unprocessed_locations_cache,
-            )
-
-        if unprocessed_technosphere_edges:
-            unprocessed_locations_cache = defaultdict(nested_dict)
-            handle_region_subset(
-                direction="technosphere-technosphere",
-                unprocessed_edges=list(unprocessed_technosphere_edges),
-                cfs_lookup=cfs_lookup,
-                unprocessed_locations_cache=unprocessed_locations_cache,
-            )
-
-        unprocessed_biosphere_edges = (
-            set(unprocessed_biosphere_edges) - processed_biosphere_edges
-        )
-        unprocessed_technosphere_edges = (
-            set(unprocessed_technosphere_edges) - processed_technosphere_edges
-        )
-
-        # if still unprocessed, we give them global CFs
-        for direction, unprocessed in [
-            ("biosphere-technosphere", unprocessed_biosphere_edges),
-            ("technosphere-technosphere", unprocessed_technosphere_edges),
-        ]:
-            if len(unprocessed) > 0:
-                print("Handling remaining exchanges...")
-                for supplier_idx, consumer_idx in tqdm(unprocessed_biosphere_edges):
-                    supplier_info = dict(reversed_supplier_lookup[supplier_idx])
-                    consumer_info = dict(reversed_consumer_lookup[consumer_idx])
-                    location = consumer_info.get("location")
-
-                    locations = find_locations(
-                        location="GLO",
-                        weights_available=tuple(weight.keys()),
-                    )
-                    new_cf, _ = compute_average_cf(
-                        candidates=locations,
-                        supplier_info=supplier_info,
-                        weight=weight,
-                        cfs_lookup=cfs_lookup,
-                        location=location,
-                    )
-
-                    if new_cf:
-                        add_cf_entry(
-                            cf_data=self.cfs_data,
-                            supplier_info=supplier_info,
-                            consumer_info=consumer_info,
-                            direction=direction,
-                            indices=[(supplier_idx, consumer_idx)],
-                            value=new_cf,
-                        )
-
-        self.print_summary_table(
-            processed_biosphere_edges=list(processed_biosphere_edges),
-            processed_technosphere_edges=list(processed_technosphere_edges),
-            unprocessed_biosphere_edges=list(unprocessed_biosphere_edges),
-            unprocessed_technosphere_edges=list(unprocessed_technosphere_edges),
-        )
-
-    def print_summary_table(
-        self,
-        processed_biosphere_edges: list,
-        processed_technosphere_edges: list,
-        unprocessed_biosphere_edges: list,
-        unprocessed_technosphere_edges: list,
-    ):
+    def statistics(self):
         """
         Build a table that summarize the method name, data file,
         number of CF, number of CFs used, number of exchanges characterized,
@@ -873,11 +812,11 @@ class EdgeLCIA:
             f for cf in self.cfs_data for f in cf.get("technosphere-technosphere", [])
         }
 
-        unprocessed_biosphere_edges = (
-            set(unprocessed_biosphere_edges) - processed_biosphere_edges
+        self.unprocessed_biosphere_edges = (
+            set(self.unprocessed_biosphere_edges) - processed_biosphere_edges
         )
-        unprocessed_technosphere_edges = (
-            set(unprocessed_technosphere_edges) - processed_technosphere_edges
+        self.unprocessed_technosphere_edges = (
+            set(self.unprocessed_technosphere_edges) - processed_technosphere_edges
         )
 
         # build PrettyTable
@@ -897,7 +836,26 @@ class EdgeLCIA:
         rows.append(["Data file", fill(self.filepath.stem, width=45)])
         rows.append(["Unique CFs in method", self.cfs_number])
         rows.append(
-            ["Unique CFs used", len(list(set([x["value"] for x in self.cfs_data])))]
+            [
+                "Unique CFs used",
+                len(
+                    list(
+                        set(
+                            [
+                                x["value"]
+                                for x in self.cfs_data
+                                if any(
+                                    x.get(direction)
+                                    for direction in [
+                                        "biosphere-technosphere",
+                                        "technosphere-technosphere",
+                                    ]
+                                )
+                            ]
+                        )
+                    )
+                ),
+            ]
         )
 
         if self.ignored_method_exchanges:
@@ -918,7 +876,7 @@ class EdgeLCIA:
             rows.append(
                 [
                     "Exc. uncharacterized",
-                    len(unprocessed_biosphere_edges),
+                    len(self.unprocessed_biosphere_edges),
                 ]
             )
 
@@ -932,7 +890,7 @@ class EdgeLCIA:
             rows.append(
                 [
                     "Exc. uncharacterized",
-                    len(unprocessed_technosphere_edges),
+                    len(self.unprocessed_technosphere_edges),
                 ]
             )
 
@@ -940,39 +898,6 @@ class EdgeLCIA:
             table.add_row(row)
 
         print(table)
-
-        for unprocessed_edges in [
-            unprocessed_biosphere_edges,
-            unprocessed_technosphere_edges,
-        ]:
-            if unprocessed_edges:
-                # print a pretty table and list the flows
-                # which have not been characterized
-                print(
-                    f"{len(unprocessed_edges)} exchanges have been given a global CF:"
-                )
-                table = PrettyTable()
-                table.field_names = [
-                    "Supplier name",
-                    "Supplier loc",
-                    "Consumer name",
-                    "Consumer loc",
-                ]
-                for i, j in unprocessed_biosphere_edges:
-                    try:
-                        supplier = bw2data.get_activity(self.reversed_biosphere[i])
-                    except:
-                        supplier = bw2data.get_activity(self.reversed_activity[i])
-                    consumer = bw2data.get_activity(self.reversed_activity[j])
-                    table.add_row(
-                        [
-                            fill(supplier["name"], width=20),
-                            fill(supplier.get("location", ""), width=20),
-                            fill(consumer["name"], width=20),
-                            fill(consumer.get("location"), width=20),
-                        ]
-                    )
-                print(table)
 
     def fill_in_lcia_matrix(self) -> None:
         """
@@ -985,8 +910,6 @@ class EdgeLCIA:
             self.characterization_matrix = initialize_lcia_matrix(
                 self.lca, matrix_type="technosphere"
             )
-
-        self.identify_exchanges()
 
         for cf in self.cfs_data:
             for supplier, consumer in cf.get("biosphere-technosphere", []):
@@ -1001,7 +924,7 @@ class EdgeLCIA:
         """
         Calculate the LCIA score.
         """
-        self.load_lcia_data()
+
         self.fill_in_lcia_matrix()
 
         try:
