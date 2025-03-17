@@ -154,6 +154,7 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
     Initialize the LCIA matrix. It is a sparse matrix with the
     dimensions of the `inventory` matrix of the LCA object.
     :param lca: The LCA object.
+    :param matrix_type: The type of the matrix.
     :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
     """
     if matrix_type == "biosphere":

@@ -70,14 +70,14 @@ def compute_average_cf(
 
     # Filter constituents with valid weights
     if len(candidates) == 0:
-        return 0, None
+        return 0
     elif len(candidates) == 1:
         valid_candidates = [(candidates[0], 1)]
     else:
         valid_candidates = [(c, weight[c]) for c in candidates if c in weight]
 
     if not valid_candidates:
-        return 0, None
+        return 0
 
     # Separate constituents and weights
     candidates, weight_array = zip(*valid_candidates)
@@ -86,11 +86,13 @@ def compute_average_cf(
     # Normalize weights
     weight_sum = weight_array.sum()
     if weight_sum == 0:
-        return 0, None
+        return 0
     shares = weight_array / weight_sum
 
     # Pre-filter supplier keys for filtering
-    supplier_keys = supplier_info.keys()
+    # Constants for ignored fields
+    IGNORED_FIELDS = {"matrix", "operator", "weight"}
+    supplier_keys = [key for key in supplier_info.keys() if key not in IGNORED_FIELDS]
 
     def match_supplier(cf: dict) -> bool:
         """
@@ -114,14 +116,17 @@ def compute_average_cf(
         loc_cfs = cfs_lookup.get(loc, [])
 
         # Filter CFs based on supplier info using the operator logic
-        filtered_cfs = [cf["value"] for cf in loc_cfs if match_supplier(cf)]
+        filtered_cfs = [cf for cf in loc_cfs if match_supplier(cf)]
 
         if len(filtered_cfs) == 0:
-            raise ValueError(f"No CFs found for {supplier_info} for {loc} in {loc_cfs}")
-        if len(filtered_cfs) > 1:
-            raise ValueError(f"Multiple CFs found for {supplier_info} in {loc}")
+            continue
 
-        value += share * filtered_cfs[0]
+        if len(filtered_cfs) > 1:
+            raise ValueError(
+                f"Multiple CFs found for {supplier_info} in {loc}: {filtered_cfs}"
+            )
+
+        value += share * filtered_cfs[0]["value"]
 
     # Log if shares don't sum to 1 due to precision issues
     if not np.isclose(shares.sum(), 1):
@@ -238,13 +243,9 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     if operator == "equals":
         return value == target
     elif operator == "startswith":
-        if isinstance(value, str) and isinstance(target, str):
-            return value.startswith(target)
-        return False
+        return value.startswith(target)
     elif operator == "contains":
-        if isinstance(value, str) and isinstance(target, str):
-            return target in value
-        return False
+        return target in value
     return False
 
 
@@ -302,6 +303,10 @@ def match_with_index(
 
 
 def add_cf_entry(cf_data, supplier_info, consumer_info, direction, indices, value):
+    supplier_info["matrix"] = (
+        "biosphere" if direction == "biosphere-technosphere" else "technosphere"
+    )
+    consumer_info["matrix"] = "technosphere"
     cf_data.append(
         {
             "supplier": supplier_info,
@@ -747,7 +752,7 @@ class EdgeLCIA:
             for pos in positions
         }
 
-    def identify_exchanges(self):
+    def map_exchanges(self):
         """
         Based on search criteria under `supplier` and `consumer` keys,
         identify the exchanges in the inventory matrix.
@@ -899,7 +904,7 @@ class EdgeLCIA:
 
         print(table)
 
-    def fill_in_lcia_matrix(self) -> None:
+    def fill_characterization_matrix(self) -> None:
         """
         Translate the data to indices in the inventory matrix.
         """
@@ -925,13 +930,18 @@ class EdgeLCIA:
         Calculate the LCIA score.
         """
 
-        self.fill_in_lcia_matrix()
+        self.fill_characterization_matrix()
+
+        # if self.characterization_matrix.shape != self.lca.inventory.shape:
+        #    raise ValueError(
+        #        f"The inventory and characterization matrices have different shapes: {self.lca.inventory.shape} and {self.characterization_matrix.shape}."
+        #    )
 
         try:
             self.characterized_inventory = self.characterization_matrix.multiply(
                 self.lca.inventory
             )
-        except ValueError:
+        except ValueError as err:
             self.characterized_inventory = self.characterization_matrix.multiply(
                 self.technosphere_flow_matrix
             )
