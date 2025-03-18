@@ -30,7 +30,7 @@ from .utils import (
     get_str,
     safe_eval,
     validate_parameter_lengths,
-    add_population_and_gdp_data
+    add_population_and_gdp_data,
 )
 from .filesystem_constants import DATA_DIR
 
@@ -482,7 +482,7 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
@@ -490,7 +490,10 @@ class EdgeLCIA:
         # Precompute the required supplier fields if not already done.
         # Here we mimic what preprocess_lookups() does.
         self.required_supplier_fields = {
-            k for cf in self.raw_cfs_data for k in cf["supplier"].keys() if k not in {"matrix", "operator", "weight"}
+            k
+            for cf in self.raw_cfs_data
+            for k in cf["supplier"].keys()
+            if k not in {"matrix", "operator", "weight"}
         }
 
         # Build a set of candidate supplier signatures from cfs_lookup.
@@ -499,7 +502,10 @@ class EdgeLCIA:
         for candidate, cf_list in cfs_lookup.items():
             for cf in cf_list:
                 # Build signature for this candidate's supplier info.
-                key = tuple((k, cf["supplier"].get(k)) for k in sorted(self.required_supplier_fields))
+                key = tuple(
+                    (k, cf["supplier"].get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 candidate_supplier_keys.add(key)
 
         print("Handling static regions...")
@@ -514,6 +520,7 @@ class EdgeLCIA:
 
             # Build an inverted index of unprocessed edges keyed by consumer location.
             from collections import defaultdict
+
             edges_index = defaultdict(list)
             for supplier_idx, consumer_idx in unprocessed_edges:
                 # Skip edges already processed (if any)
@@ -521,11 +528,15 @@ class EdgeLCIA:
                     continue
                 consumer_info = dict(self.reversed_consumer_lookup[supplier_idx])
                 # Note: We use the consumer's location from the consumer lookup.
-                location = dict(self.reversed_consumer_lookup[consumer_idx]).get("location")
+                location = dict(self.reversed_consumer_lookup[consumer_idx]).get(
+                    "location"
+                )
                 edges_index[location].append((supplier_idx, consumer_idx))
 
             # Iterate over each consumer location group.
-            for location, edges in tqdm(edges_index.items(), desc="Processing locations"):
+            for location, edges in tqdm(
+                edges_index.items(), desc="Processing locations"
+            ):
                 # Skip dynamic regions.
                 if location in ["RoW", "RoE"]:
                     continue
@@ -538,12 +549,14 @@ class EdgeLCIA:
                 if not candidate_locations:
                     continue
 
-
                 # Process each edge in this location group.
                 for supplier_idx, consumer_idx in edges:
                     supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                     # Compute a signature for the supplier based on required fields.
-                    supplier_key = tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+                    supplier_key = tuple(
+                        (k, supplier_info.get(k))
+                        for k in sorted(self.required_supplier_fields)
+                    )
                     # If this signature isn't in the candidate set, skip this edge.
                     if supplier_key not in candidate_supplier_keys:
                         continue
@@ -577,14 +590,16 @@ class EdgeLCIA:
         weight = {
             cf["consumer"]["location"]: cf["consumer"]["weight"]
             for cf in self.cfs_mapping
-            if cf["consumer"].get("location") and cf["consumer"].get("weight") is not None
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         # Precompute required supplier fields (excluding non-matching fields)
         self.required_supplier_fields = {
-            k for cf in self.raw_cfs_data
+            k
+            for cf in self.raw_cfs_data
             for k in cf["supplier"].keys()
             if k not in {"matrix", "operator", "weight"}
         }
@@ -594,7 +609,10 @@ class EdgeLCIA:
         candidate_supplier_keys = set()
         for candidate, cf_list in cfs_lookup.items():
             for cf in cf_list:
-                key = tuple((k, cf["supplier"].get(k)) for k in sorted(self.required_supplier_fields))
+                key = tuple(
+                    (k, cf["supplier"].get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 candidate_supplier_keys.add(key)
 
         # Build technosphere flow lookups as in the original implementation.
@@ -616,10 +634,15 @@ class EdgeLCIA:
                 else self.unprocessed_technosphere_edges
             )
 
-            for supplier_idx, consumer_idx in tqdm(unprocessed_edges, desc="Processing dynamic edges"):
+            for supplier_idx, consumer_idx in tqdm(
+                unprocessed_edges, desc="Processing dynamic edges"
+            ):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                 # Pre-filter: compute supplier signature (using required fields).
-                supplier_key = tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+                supplier_key = tuple(
+                    (k, supplier_info.get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 if supplier_key not in candidate_supplier_keys:
                     continue  # Skip edge if supplier signature not found in candidate CF lookup.
 
@@ -628,13 +651,18 @@ class EdgeLCIA:
 
                 # Only process dynamic regions.
                 if location in ["RoW", "RoE"]:
-                    consumer_act = self.position_to_technosphere_flows_lookup[consumer_idx]
+                    consumer_act = self.position_to_technosphere_flows_lookup[
+                        consumer_idx
+                    ]
                     name = consumer_act["name"]
                     reference_product = consumer_act.get("reference product")
 
                     # Use preprocessed technosphere flows to get locations (excluding RoW/RoE) that have a weight.
                     other_than_RoW_RoE = [
-                        loc for loc in self.technosphere_flows_lookup.get((name, reference_product), [])
+                        loc
+                        for loc in self.technosphere_flows_lookup.get(
+                            (name, reference_product), []
+                        )
                         if loc not in ["RoW", "RoE"] and loc in weight
                     ]
 
@@ -677,15 +705,17 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         # Precompute required supplier fields if not already done.
         self.required_supplier_fields = {
-            k for cf in self.raw_cfs_data
-            for k in cf["supplier"].keys() if k not in {"matrix", "operator", "weight"}
+            k
+            for cf in self.raw_cfs_data
+            for k in cf["supplier"].keys()
+            if k not in {"matrix", "operator", "weight"}
         }
 
         # Build a set of candidate supplier signatures from the CF lookup.
@@ -693,7 +723,10 @@ class EdgeLCIA:
         candidate_supplier_keys = set()
         for candidate, cf_list in cfs_lookup.items():
             for cf in cf_list:
-                key = tuple((k, cf["supplier"].get(k)) for k in sorted(self.required_supplier_fields))
+                key = tuple(
+                    (k, cf["supplier"].get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 candidate_supplier_keys.add(key)
 
         print("Handling contained locations...")
@@ -707,10 +740,15 @@ class EdgeLCIA:
             )
 
             # Iterate over unprocessed edges.
-            for supplier_idx, consumer_idx in tqdm(unprocessed_edges, desc="Processing edges"):
+            for supplier_idx, consumer_idx in tqdm(
+                unprocessed_edges, desc="Processing edges"
+            ):
                 # Get supplier info and compute its signature.
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
-                supplier_key = tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+                supplier_key = tuple(
+                    (k, supplier_info.get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 # Skip edge if supplier signature is not present in candidate CF lookup.
                 if supplier_key not in candidate_supplier_keys:
                     continue
@@ -756,14 +794,15 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         # Precompute required supplier fields (excluding non-matching ones).
         self.required_supplier_fields = {
-            k for cf in self.raw_cfs_data
+            k
+            for cf in self.raw_cfs_data
             for k in cf["supplier"].keys()
             if k not in {"matrix", "operator", "weight"}
         }
@@ -773,7 +812,10 @@ class EdgeLCIA:
         candidate_supplier_keys = set()
         for candidate, cf_list in cfs_lookup.items():
             for cf in cf_list:
-                key = tuple((k, cf["supplier"].get(k)) for k in sorted(self.required_supplier_fields))
+                key = tuple(
+                    (k, cf["supplier"].get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 candidate_supplier_keys.add(key)
 
         print("Handling remaining exchanges...")
@@ -785,10 +827,15 @@ class EdgeLCIA:
                 else self.unprocessed_technosphere_edges
             )
 
-            for supplier_idx, consumer_idx in tqdm(unprocessed_edges, desc="Processing remaining global edges"):
+            for supplier_idx, consumer_idx in tqdm(
+                unprocessed_edges, desc="Processing remaining global edges"
+            ):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                 # Build the supplier's signature.
-                supplier_key = tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+                supplier_key = tuple(
+                    (k, supplier_info.get(k))
+                    for k in sorted(self.required_supplier_fields)
+                )
                 # Skip edge if supplier signature is not in candidate CF lookup.
                 if supplier_key not in candidate_supplier_keys:
                     continue
@@ -957,7 +1004,9 @@ class EdgeLCIA:
                 [
                     "Activity",
                     fill(
-                        bw2data.get_activity(id=list(self.lca.demand.keys())[0])["name"],
+                        bw2data.get_activity(id=list(self.lca.demand.keys())[0])[
+                            "name"
+                        ],
                         width=45,
                     ),
                 ]
