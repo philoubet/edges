@@ -26,9 +26,10 @@ from .utils import (
     initialize_lcia_matrix,
     get_flow_matrix_positions,
     preprocess_cfs,
-    check_database_references,
     load_missing_geographies,
     get_str,
+    safe_eval,
+    validate_parameter_lengths,
 )
 from .filesystem_constants import DATA_DIR
 
@@ -56,19 +57,7 @@ def compute_average_cf(
     supplier_info: dict,
     weight: dict,
     cfs_lookup: dict,
-    location: str,
 ):
-    """
-    Compute the average characterization factors for the region.
-    :param candidates: List of constituent regions.
-    :param supplier_info: Information about the supplier.
-    :param weight: Weights for the constituents.
-    :param cfs_lookup: Lookup dictionary for characterization factors.
-    :param location: The region being evaluated.
-    :return: The weighted average CF value.
-    """
-
-    # Filter constituents with valid weights
     if len(candidates) == 0:
         return 0
     elif len(candidates) == 1:
@@ -89,15 +78,10 @@ def compute_average_cf(
         return 0
     shares = weight_array / weight_sum
 
-    # Pre-filter supplier keys for filtering
-    # Constants for ignored fields
     IGNORED_FIELDS = {"matrix", "operator", "weight"}
     supplier_keys = [key for key in supplier_info.keys() if key not in IGNORED_FIELDS]
 
     def match_supplier(cf: dict) -> bool:
-        """
-        Match a supplier based on operator logic.
-        """
         for key in supplier_keys:
             supplier_value = supplier_info.get(key)
             match_target = cf["supplier"].get(key)
@@ -109,13 +93,12 @@ def compute_average_cf(
                 return False
         return True
 
-    # Compute the weighted average CF value
-    value = 0
-
+    # Build symbolic expression from matching CFs
+    expressions = []
     for loc, share in zip(candidates, shares):
         loc_cfs = cfs_lookup.get(loc, [])
 
-        # Filter CFs based on supplier info using the operator logic
+        # Apply the supplier matching logic here
         filtered_cfs = [cf for cf in loc_cfs if match_supplier(cf)]
 
         if len(filtered_cfs) == 0:
@@ -126,15 +109,14 @@ def compute_average_cf(
                 f"Multiple CFs found for {supplier_info} in {loc}: {filtered_cfs}"
             )
 
-        value += share * filtered_cfs[0]["value"]
+        cf_expr = filtered_cfs[0]["value"]  # this can be numeric or symbolic
+        expressions.append(f"({share:.6f} * ({cf_expr}))")
 
-    # Log if shares don't sum to 1 due to precision issues
-    if not np.isclose(shares.sum(), 1):
-        logger.info(
-            f"Shares for {location} do not sum to 1 but {shares.sum()}: {shares}"
-        )
+    if not expressions:
+        return 0
 
-    return value
+    symbolic_average = " + ".join(expressions)
+    return symbolic_average
 
 
 @lru_cache(maxsize=100000)
@@ -147,9 +129,7 @@ def find_locations(
     """
     Find the locations containing or contained by a given location.
     :param location: The location to evaluate.
-    :param supplier_info: Information about the supplier.
     :param weights_available: List of locations for which a weight is available.
-    :param cfs: Lookup dictionary for characterization factors.
     :param containing: If True, find containing locations; otherwise, find contained locations.
     :return: The new characterization factor.
     """
@@ -302,19 +282,15 @@ def match_with_index(
     return matches
 
 
-def add_cf_entry(cf_data, supplier_info, consumer_info, direction, indices, value):
-    supplier_info["matrix"] = (
-        "biosphere" if direction == "biosphere-technosphere" else "technosphere"
-    )
-    consumer_info["matrix"] = "technosphere"
-    cf_data.append(
-        {
-            "supplier": supplier_info,
-            "consumer": consumer_info,
-            direction: indices,
-            "value": value,
-        }
-    )
+def add_cf_entry(cfs_mapping, supplier_info, consumer_info, direction, indices, value):
+    entry = {
+        "supplier": supplier_info,
+        "consumer": consumer_info,
+        "positions": indices,
+        "direction": direction,
+        "value": value,
+    }
+    cfs_mapping.append(entry)
 
 
 def default_geo(constituent):
@@ -336,6 +312,7 @@ class EdgeLCIA:
         demand: dict,
         method: Optional[tuple] = None,
         weight: Optional[str] = "population",
+        parameters: Optional[dict] = None,
         filepath: Optional[str] = None,
     ):
         """
@@ -343,6 +320,13 @@ class EdgeLCIA:
         `prepare_lca_inputs` while still being available in the class.
         """
 
+        self.consumer_lookup = None
+        self.required_supplier_fields = None
+        self.reversed_consumer_lookup = None
+        self.reversed_supplier_lookup = None
+        self.processed_technosphere_edges = None
+        self.processed_biosphere_edges = None
+        self.raw_cfs_data = None
         self.unprocessed_technosphere_edges = []
         self.unprocessed_biosphere_edges = []
         self.score = None
@@ -354,9 +338,9 @@ class EdgeLCIA:
         self.method = method  # Store the method argument in the instance
         self.position_to_technosphere_flows_lookup = None
         self.technosphere_flows_lookup = defaultdict(list)
-        self.technosphere_edges = None
+        self.technosphere_edges = []
         self.technosphere_flow_matrix = None
-        self.biosphere_edges = None
+        self.biosphere_edges = []
         self.technosphere_flows = None
         self.biosphere_flows = None
         self.characterized_inventory = None
@@ -366,19 +350,27 @@ class EdgeLCIA:
         self.ignored_method_exchanges = list()
         self.cfs_data = None
         self.weight: str = weight
+        self.parameters = parameters or {}
+        self.scenario_length = validate_parameter_lengths(parameters=self.parameters)
 
         self.lca = bw2calc.LCA(demand=demand)
-        self.load_lcia_data()
+        self.load_raw_lcia_data()
+        self.cfs_mapping = []
 
     def lci(self) -> None:
 
         self.lca.lci()
 
-        self.technosphere_flow_matrix = self.build_technosphere_edges_matrix()
-        self.technosphere_edges = set(
-            list(zip(*self.technosphere_flow_matrix.nonzero()))
-        )
-        self.biosphere_edges = set(list(zip(*self.lca.inventory.nonzero())))
+        if all(
+            cf["supplier"].get("matrix") == "technosphere" for cf in self.raw_cfs_data
+        ):
+            self.technosphere_flow_matrix = self.build_technosphere_edges_matrix()
+            self.technosphere_edges = set(
+                list(zip(*self.technosphere_flow_matrix.nonzero()))
+            )
+        else:
+            self.biosphere_edges = set(list(zip(*self.lca.inventory.nonzero())))
+
         unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
         self.biosphere_flows = get_flow_matrix_positions(
             {
@@ -416,59 +408,58 @@ class EdgeLCIA:
 
         return flow_matrix_sparse.tocsr()
 
-    def load_lcia_data(self, data_objs=None):
-        """
-        Load the data for the LCIA method.
-        """
+    def load_raw_lcia_data(self):
         if self.filepath is None:
             self.filepath = DATA_DIR / f"{'_'.join(self.method)}.json"
-
         if not self.filepath.is_file():
             raise FileNotFoundError(f"Data file not found: {self.filepath}")
 
         with open(self.filepath, "r", encoding="utf-8") as f:
-            self.cfs_data = format_data(data=json.load(f), weight=self.weight)
-            self.cfs_number = len(set([x.get("value") for x in self.cfs_data]))
+            self.raw_cfs_data = json.load(f)
+
+    def evaluate_cfs(self, scenario_idx=0):
+        self.scenario_cfs = []
+
+        for cf in self.cfs_mapping:
+            symbolic_expr = cf["value"]
+            numeric_value = safe_eval(symbolic_expr, self.parameters, scenario_idx)
+
+            scenario_cf = {
+                "supplier": cf["supplier"],
+                "consumer": cf["consumer"],
+                "positions": cf["positions"],
+                "value": numeric_value,
+            }
+            self.scenario_cfs.append(scenario_cf)
+
+        self.scenario_cfs = format_data(self.scenario_cfs, self.weight)
+        self.cfs_number = len({x["value"] for x in self.scenario_cfs})
 
     def update_unprocessed_edges(self):
-
-        # Process edges
-
-        edges = {
-            (f[0], f[1])
-            for cf in self.cfs_data
-            for f in cf.get("biosphere-technosphere", [])
-            if f
+        self.processed_biosphere_edges = {
+            pos
+            for cf in self.cfs_mapping
+            if cf["direction"] == "biosphere-technosphere"
+            for pos in cf["positions"]
         }
 
-        if edges:
-            supplier_bio_tech_edges, consumer_bio_tech_edges = map(set, zip(*edges))
-        else:
-            supplier_bio_tech_edges, consumer_bio_tech_edges = set(), set()
-
-        edges = {
-            (f[0], f[1])
-            for cf in self.cfs_data
-            for f in cf.get("technosphere-technosphere", [])
-            if f
+        self.processed_technosphere_edges = {
+            pos
+            for cf in self.cfs_mapping
+            if cf["direction"] == "technosphere-technosphere"
+            for pos in cf["positions"]
         }
-
-        if edges:
-            supplier_tech_tech_edges, consumer_tech_tech_edges = map(set, zip(*edges))
-        else:
-            supplier_tech_tech_edges, consumer_tech_tech_edges = set(), set()
 
         self.unprocessed_biosphere_edges = [
             edge
             for edge in self.biosphere_edges
-            if edge[0] in supplier_bio_tech_edges
-            and edge[1] not in consumer_bio_tech_edges
+            if edge not in self.processed_biosphere_edges
         ]
+
         self.unprocessed_technosphere_edges = [
             edge
             for edge in self.technosphere_edges
-            if edge[0] in supplier_tech_tech_edges
-            and edge[1] not in consumer_tech_tech_edges
+            if edge not in self.processed_technosphere_edges
         ]
 
     def map_aggregate_locations(self) -> None:
@@ -480,12 +471,13 @@ class EdgeLCIA:
         """
 
         weight = {
-            i.get("consumer").get("location"): i.get("consumer").get("weight")
-            for i in self.cfs_data
-            if i.get("consumer").get("location")
+            cf["consumer"]["location"]: cf["consumer"]["weight"]
+            for cf in self.cfs_mapping
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
 
-        cfs_lookup = preprocess_cfs(self.cfs_data)
+        cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         print("Handling static regions...")
 
@@ -495,6 +487,7 @@ class EdgeLCIA:
                 if direction == "biosphere-technosphere"
                 else self.unprocessed_technosphere_edges
             )
+
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
@@ -512,12 +505,11 @@ class EdgeLCIA:
                         supplier_info=supplier_info,
                         weight=weight,
                         cfs_lookup=cfs_lookup,
-                        location=location,
                     )
 
                     if new_cf != 0:
                         add_cf_entry(
-                            cf_data=self.cfs_data,
+                            cfs_mapping=self.cfs_mapping,
                             supplier_info=supplier_info,
                             consumer_info=consumer_info,
                             direction=direction,
@@ -535,12 +527,13 @@ class EdgeLCIA:
         """
 
         weight = {
-            i.get("consumer").get("location"): i.get("consumer").get("weight")
-            for i in self.cfs_data
-            if i.get("consumer").get("location")
+            cf["consumer"]["location"]: cf["consumer"]["weight"]
+            for cf in self.cfs_mapping
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
 
-        cfs_lookup = preprocess_cfs(self.cfs_data)
+        cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         self.position_to_technosphere_flows_lookup = {
             i["position"]: {k: i[k] for k in i if k != "position"}
@@ -592,12 +585,11 @@ class EdgeLCIA:
                         supplier_info=supplier_info,
                         weight=weight,
                         cfs_lookup=cfs_lookup,
-                        location=location,
                     )
 
                     if new_cf:
                         add_cf_entry(
-                            cf_data=self.cfs_data,
+                            cfs_mapping=self.cfs_mapping,
                             supplier_info=supplier_info,
                             consumer_info=consumer_info,
                             direction=direction,
@@ -612,11 +604,13 @@ class EdgeLCIA:
     ) -> None:
 
         weight = {
-            i.get("consumer").get("location"): i.get("consumer").get("weight")
-            for i in self.cfs_data
-            if i.get("consumer").get("location")
+            cf["consumer"]["location"]: cf["consumer"]["weight"]
+            for cf in self.cfs_mapping
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
-        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         print("Handling unmatched locations...")
 
@@ -642,28 +636,30 @@ class EdgeLCIA:
                     supplier_info=supplier_info,
                     weight=weight,
                     cfs_lookup=cfs_lookup,
-                    location=location,
                 )
 
                 if new_cf != 0:
                     add_cf_entry(
-                        cf_data=self.cfs_data,
+                        cfs_mapping=self.cfs_mapping,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
                         direction=direction,
                         indices=[(supplier_idx, consumer_idx)],
                         value=new_cf,
                     )
+
         self.update_unprocessed_edges()
 
     def map_remaining_locations_to_global(self) -> None:
 
         weight = {
-            i.get("consumer").get("location"): i.get("consumer").get("weight")
-            for i in self.cfs_data
-            if i.get("consumer").get("location")
+            cf["consumer"]["location"]: cf["consumer"]["weight"]
+            for cf in self.cfs_mapping
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
-        cfs_lookup = preprocess_cfs(self.cfs_data)
+
+        cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         # if still unprocessed, we give them global CFs
         print("Handling remaining exchanges...")
@@ -678,7 +674,6 @@ class EdgeLCIA:
             for supplier_idx, consumer_idx in tqdm(unprocessed_edges):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                 consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
-                location = consumer_info.get("location")
 
                 locations = find_locations(
                     location="GLO",
@@ -689,12 +684,11 @@ class EdgeLCIA:
                     supplier_info=supplier_info,
                     weight=weight,
                     cfs_lookup=cfs_lookup,
-                    location=location,
                 )
 
                 if new_cf:
                     add_cf_entry(
-                        cf_data=self.cfs_data,
+                        cfs_mapping=self.cfs_mapping,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
                         direction=direction,
@@ -714,13 +708,13 @@ class EdgeLCIA:
         # Precompute required fields for faster access
         self.required_supplier_fields = {
             k
-            for cf in self.cfs_data
+            for cf in self.raw_cfs_data
             for k in cf["supplier"].keys()
             if k not in IGNORED_FIELDS
         }
         self.required_consumer_fields = {
             k
-            for cf in self.cfs_data
+            for cf in self.raw_cfs_data
             for k in cf["consumer"].keys()
             if k not in IGNORED_FIELDS
         }
@@ -729,7 +723,8 @@ class EdgeLCIA:
             flows_list=(
                 self.biosphere_flows
                 if all(
-                    cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data
+                    cf["supplier"].get("matrix") == "biosphere"
+                    for cf in self.raw_cfs_data
                 )
                 else self.technosphere_flows
             ),
@@ -746,6 +741,7 @@ class EdgeLCIA:
             for key, positions in self.supplier_lookup.items()
             for pos in positions
         }
+
         self.reversed_consumer_lookup = {
             pos: key
             for key, positions in self.consumer_lookup.items()
@@ -763,7 +759,9 @@ class EdgeLCIA:
 
         edges = (
             self.biosphere_edges
-            if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data)
+            if all(
+                cf["supplier"].get("matrix") == "biosphere" for cf in self.raw_cfs_data
+            )
             else self.technosphere_edges
         )
 
@@ -776,7 +774,7 @@ class EdgeLCIA:
 
         # tdqm progress bar
         print("Identifying eligible exchanges...")
-        for cf in tqdm(self.cfs_data):
+        for cf in tqdm(self.raw_cfs_data):
             # Generate supplier candidates
             supplier_candidates = match_with_index(
                 cf["supplier"],
@@ -794,12 +792,22 @@ class EdgeLCIA:
             )
 
             # Create pairs of supplier and consumer candidates
-            cf[f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}"] = [
+            positions = [
                 (supplier, consumer)
                 for supplier in supplier_candidates
                 for consumer in consumer_candidates
                 if (supplier, consumer) in edges
             ]
+
+            cf_entry = {
+                "supplier": cf["supplier"],
+                "consumer": cf["consumer"],
+                "direction": f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}",
+                "positions": positions,
+                "value": cf["value"],  # Don't evaluate yet
+            }
+
+            self.cfs_mapping.append(cf_entry)
 
         self.update_unprocessed_edges()
 
@@ -809,20 +817,6 @@ class EdgeLCIA:
         number of CF, number of CFs used, number of exchanges characterized,
         number of exchanged for which a CF could not be obtained.
         """
-
-        processed_biosphere_edges = {
-            f for cf in self.cfs_data for f in cf.get("biosphere-technosphere", [])
-        }
-        processed_technosphere_edges = {
-            f for cf in self.cfs_data for f in cf.get("technosphere-technosphere", [])
-        }
-
-        self.unprocessed_biosphere_edges = (
-            set(self.unprocessed_biosphere_edges) - processed_biosphere_edges
-        )
-        self.unprocessed_technosphere_edges = (
-            set(self.unprocessed_technosphere_edges) - processed_technosphere_edges
-        )
 
         # build PrettyTable
         table = PrettyTable()
@@ -848,14 +842,8 @@ class EdgeLCIA:
                         set(
                             [
                                 x["value"]
-                                for x in self.cfs_data
-                                if any(
-                                    x.get(direction)
-                                    for direction in [
-                                        "biosphere-technosphere",
-                                        "technosphere-technosphere",
-                                    ]
-                                )
+                                for x in self.cfs_mapping
+                                if len(x["positions"]) > 0
                             ]
                         )
                     )
@@ -871,11 +859,11 @@ class EdgeLCIA:
         if self.ignored_locations:
             rows.append(["Product system locations ignored", self.ignored_locations])
 
-        if len(processed_biosphere_edges) > 0:
+        if len(self.processed_biosphere_edges) > 0:
             rows.append(
                 [
                     "Exc. characterized",
-                    len(processed_biosphere_edges),
+                    len(self.processed_biosphere_edges),
                 ]
             )
             rows.append(
@@ -885,11 +873,11 @@ class EdgeLCIA:
                 ]
             )
 
-        if len(processed_technosphere_edges) > 0:
+        if len(self.processed_technosphere_edges) > 0:
             rows.append(
                 [
                     "Exc. characterized",
-                    len(processed_technosphere_edges),
+                    len(self.processed_technosphere_edges),
                 ]
             )
             rows.append(
@@ -904,23 +892,19 @@ class EdgeLCIA:
 
         print(table)
 
-    def fill_characterization_matrix(self) -> None:
-        """
-        Translate the data to indices in the inventory matrix.
-        """
+    def fill_characterization_matrix(self):
+        matrix_type = (
+            "biosphere"
+            if all(cf["supplier"]["matrix"] == "biosphere" for cf in self.scenario_cfs)
+            else "technosphere"
+        )
 
-        if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.cfs_data):
-            self.characterization_matrix = initialize_lcia_matrix(self.lca)
-        else:
-            self.characterization_matrix = initialize_lcia_matrix(
-                self.lca, matrix_type="technosphere"
-            )
+        self.characterization_matrix = initialize_lcia_matrix(
+            self.lca, matrix_type=matrix_type
+        )
 
-        for cf in self.cfs_data:
-            for supplier, consumer in cf.get("biosphere-technosphere", []):
-                self.characterization_matrix[supplier, consumer] = cf["value"]
-
-            for supplier, consumer in cf.get("technosphere-technosphere", []):
+        for cf in self.scenario_cfs:
+            for supplier, consumer in cf["positions"]:
                 self.characterization_matrix[supplier, consumer] = cf["value"]
 
         self.characterization_matrix = self.characterization_matrix.tocsr()
@@ -931,11 +915,6 @@ class EdgeLCIA:
         """
 
         self.fill_characterization_matrix()
-
-        # if self.characterization_matrix.shape != self.lca.inventory.shape:
-        #    raise ValueError(
-        #        f"The inventory and characterization matrices have different shapes: {self.lca.inventory.shape} and {self.characterization_matrix.shape}."
-        #    )
 
         try:
             self.characterized_inventory = self.characterization_matrix.multiply(
@@ -950,56 +929,67 @@ class EdgeLCIA:
 
     def generate_cf_table(self) -> pd.DataFrame:
         """
-        Generate a pandas DataFrame with the characterization factors,
-        from self.characterization_matrix.
+        Generate a pandas DataFrame with the evaluated characterization factors
+        used in the current scenario.
         """
-        # Determine the matrix type
-        is_biosphere = all("biosphere-technosphere" in cf for cf in self.cfs_data)
-        print(f"Matrix type: {'biosphere' if is_biosphere else 'technosphere'}")
+
+        # Ensure evaluated CFs are available
+        if not self.scenario_cfs:
+            raise ValueError("You must run evaluate_cfs_for_scenario() first.")
+
+        # Determine matrix type clearly
+        is_biosphere = all(
+            cf["supplier"]["matrix"] == "biosphere" for cf in self.scenario_cfs
+        )
+
         inventory = (
-            self.lca.inventory
-            if is_biosphere is True
-            else self.technosphere_flow_matrix
+            self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
         )
 
         data = []
-        non_zero_indices = self.characterization_matrix.nonzero()
 
-        for i, j in zip(*non_zero_indices):
-            consumer = bw2data.get_activity(self.reversed_activity[j])
-            supplier = bw2data.get_activity(
-                self.reversed_biosphere[i]
-                if is_biosphere
-                else self.reversed_activity[i]
-            )
+        for cf in self.scenario_cfs:
+            for supplier_idx, consumer_idx in cf["positions"]:
+                consumer = bw2data.get_activity(self.reversed_activity[consumer_idx])
 
-            entry = {
-                "supplier name": supplier["name"],
-                "consumer name": consumer["name"],
-                "consumer reference product": consumer.get("reference product"),
-                "consumer location": consumer.get("location"),
-                "amount": inventory[i, j],
-                "CF": self.characterization_matrix[i, j],
-                "impact": self.characterized_inventory[i, j],
-            }
-
-            # Add supplier-specific fields based on matrix type
-            if is_biosphere is True:
-                entry.update({"supplier categories": supplier.get("categories")})
-            else:
-                entry.update(
-                    {
-                        "supplier reference product": supplier.get("reference product"),
-                        "supplier location": supplier.get("location"),
-                    }
+                supplier = bw2data.get_activity(
+                    self.reversed_biosphere[supplier_idx]
+                    if is_biosphere
+                    else self.reversed_activity[supplier_idx]
                 )
 
-            data.append(entry)
+                amount = inventory[supplier_idx, consumer_idx]
+                cf_value = cf["value"]
+                impact = amount * cf_value
+
+                entry = {
+                    "supplier name": supplier["name"],
+                    "consumer name": consumer["name"],
+                    "consumer reference product": consumer.get("reference product"),
+                    "consumer location": consumer.get("location"),
+                    "amount": amount,
+                    "CF": cf_value,
+                    "impact": impact,
+                }
+
+                if is_biosphere:
+                    entry.update({"supplier categories": supplier.get("categories")})
+                else:
+                    entry.update(
+                        {
+                            "supplier reference product": supplier.get(
+                                "reference product"
+                            ),
+                            "supplier location": supplier.get("location"),
+                        }
+                    )
+
+                data.append(entry)
 
         # Create the DataFrame
         df = pd.DataFrame(data)
 
-        # Specify the desired column order
+        # Specify desired column order
         column_order = [
             "supplier name",
             "supplier categories",
@@ -1013,7 +1003,7 @@ class EdgeLCIA:
             "impact",
         ]
 
-        # Reorder columns based on the desired order, ignoring missing columns
+        # Reorder columns, ignoring missing columns gracefully
         df = df[[col for col in column_order if col in df.columns]]
 
         return df
