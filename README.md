@@ -90,7 +90,7 @@ LCA.map_exchanges()
 # If needed, extend the mapping to aggregated and `dynamic` regions (e.g., RoW)
 LCA.map_aggregate_locations()
 LCA.map_dynamic_locations()
-LCA.map_disaggregate_locations()
+LCA.map_contained_locations()
 # add global CFs to exchanges missing a CF
 LCA.map_remaining_locations_to_global()
 # Evaluate CFs

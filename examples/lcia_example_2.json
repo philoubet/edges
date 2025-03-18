@@ -7,7 +7,6 @@
     },
     "consumer": {
       "matrix": "technosphere",
-      "type": "process",
       "location": "CH"
     },
     "value": 1.0
@@ -20,7 +19,6 @@
     },
     "consumer": {
       "matrix": "technosphere",
-      "type": "process",
       "location": "FR"
     },
     "value": 2.0
@@ -33,7 +31,6 @@
     },
     "consumer": {
       "matrix": "technosphere",
-      "type": "process",
       "location": "RER"
     },
     "value": 3.0
