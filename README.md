@@ -158,6 +158,7 @@ import bw2data
 from edges import EdgeLCIA
 
 # Select an activity from the LCA database
+bw2data.projects.set_current("ecoinvent-3.10-cutoff")
 act = bw2data.Database("ecoinvent-3.10-cutoff").random()
 
 # Define scenario parameters (e.g., atmospheric CO₂ concentration and time horizon)

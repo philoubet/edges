@@ -1,0 +1,38 @@
+[
+  {
+    "supplier": {
+      "name": "Carbon dioxide",
+      "operator": "startswith",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "1.0"
+  },
+  {
+    "supplier": {
+      "name": "Methane, fossil",
+      "operator": "contains",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "28 * (1 + 0.001 * (co2ppm - 410))"
+  },
+  {
+    "supplier": {
+      "name": "Dinitrogen monoxide",
+      "operator": "equals",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "265 * (1 + 0.0005 * (co2ppm - 410))"
+  }
+]
