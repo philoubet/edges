@@ -1,0 +1,1517 @@
+[
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AD",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AF",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AFR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AG",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AL",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AQ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AT",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AU",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "AZ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BB",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BD",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BE",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BF",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BG",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BH",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BI",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BJ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BN",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BS",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BT",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BW",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BY",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "BZ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CF",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CG",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CL",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CN",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CPA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CU",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CV",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CY",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "CZ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DE",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DJ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DK",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "DZ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EC",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EE",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "EG",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ER",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ET",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": NaN,
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FI",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FJ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FK",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "FR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GD",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GE",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GF",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GH",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GL",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GN",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GP",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GQ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GT",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GW",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GY",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "GZ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HK",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HN",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HT",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "HU",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "ID",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IN",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IQ",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IR",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "IS",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KH",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "KM",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MEA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "MT",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "OCE",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PAO",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "PF",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RAS",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RER",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RLA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RNA",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "RS",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "SV",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TD",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "TW",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  },
+  {
+    "supplier": {
+      "name": "Water, turbine use, unspecified natural origin",
+      "categories": [
+        "natural resource",
+        "in water"
+      ],
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "location": "WEU",
+      "matrix": "technosphere"
+    },
+    "value": 4.11e-05
+  }
+]
