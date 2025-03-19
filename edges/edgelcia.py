@@ -68,6 +68,7 @@ def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
         required_fields,
     )
 
+
 @cache
 def get_shares(candidates: tuple):
     """
@@ -82,6 +83,7 @@ def get_shares(candidates: tuple):
     if total_weight == 0:
         return 0
     return cand_locs, weight_array / total_weight
+
 
 def compute_average_cf(
     candidates: list,
@@ -149,8 +151,6 @@ def compute_average_cf(
     if not expressions:
         return 0
     return " + ".join(expressions)
-
-
 
 
 @cache
@@ -518,7 +518,7 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
@@ -547,7 +547,9 @@ class EdgeLCIA:
 
         # Helper to compute supplier signature from supplier_info.
         def supplier_signature(supplier_info: dict) -> tuple:
-            return tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+            return tuple(
+                (k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields)
+            )
 
         # Process for each exchange direction.
         for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
@@ -564,22 +566,34 @@ class EdgeLCIA:
 
             # Build an inverted index of unprocessed edges keyed by consumer location.
             from collections import defaultdict
+
             edges_index = defaultdict(list)
             for supplier_idx, consumer_idx in unprocessed_edges:
                 # Skip edges already processed (if any)
                 if (supplier_idx, consumer_idx) in self.processed_technosphere_edges:
                     continue
                 # Note: We use the consumer's location from the consumer lookup.
-                location = dict(self.reversed_consumer_lookup[consumer_idx]).get("location")
+                location = dict(self.reversed_consumer_lookup[consumer_idx]).get(
+                    "location"
+                )
                 edges_index[location].append((supplier_idx, consumer_idx))
 
             # Iterate over each consumer location group.
-            for location, edges in tqdm(edges_index.items(), desc="Processing locations"):
+            for location, edges in tqdm(
+                edges_index.items(), desc="Processing locations"
+            ):
                 # Skip dynamic regions.
                 if location in ["RoW", "RoE"]:
                     continue
                 try:
-                    if len(geo.contained(location, biggest_first=False, include_self=False)) == 0:
+                    if (
+                        len(
+                            geo.contained(
+                                location, biggest_first=False, include_self=False
+                            )
+                        )
+                        == 0
+                    ):
                         # the location does not contain any sub-locations
                         continue
                 except KeyError:
@@ -600,11 +614,15 @@ class EdgeLCIA:
                         continue
                     supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                     sig = supplier_signature(supplier_info)
-                    supplier_groups[sig].append((supplier_idx, consumer_idx, supplier_info))
+                    supplier_groups[sig].append(
+                        (supplier_idx, consumer_idx, supplier_info)
+                    )
 
                 # Process each supplier group.
                 for sig, group_edges in supplier_groups.items():
-                    rep_supplier = group_edges[0][2]  # All edges share the same supplier signature.
+                    rep_supplier = group_edges[0][
+                        2
+                    ]  # All edges share the same supplier signature.
                     new_cf = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=rep_supplier,
@@ -614,7 +632,9 @@ class EdgeLCIA:
                     if new_cf != 0:
                         # "Broadcast" the computed CF to all edges in the group.
                         for supplier_idx, consumer_idx, supplier_info in group_edges:
-                            consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
+                            consumer_info = dict(
+                                self.reversed_consumer_lookup[consumer_idx]
+                            )
                             add_cf_entry(
                                 cfs_mapping=self.cfs_mapping,
                                 supplier_info=supplier_info,
@@ -636,7 +656,8 @@ class EdgeLCIA:
         weight = {
             cf["consumer"]["location"]: cf["consumer"]["weight"]
             for cf in self.cfs_mapping
-            if cf["consumer"].get("location") and cf["consumer"].get("weight") is not None
+            if cf["consumer"].get("location")
+            and cf["consumer"].get("weight") is not None
         }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
@@ -677,12 +698,16 @@ class EdgeLCIA:
 
         # Helper: compute supplier signature using required supplier fields.
         def supplier_signature(supplier_info: dict) -> tuple:
-            return tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+            return tuple(
+                (k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields)
+            )
 
         # Helper: compute consumer activity signature from the technosphere flow.
         # We use the "name" and "reference product" from the consumer's technosphere flow.
         def consumer_act_signature(consumer_idx) -> tuple:
-            consumer_act = self.position_to_technosphere_flows_lookup.get(consumer_idx, {})
+            consumer_act = self.position_to_technosphere_flows_lookup.get(
+                consumer_idx, {}
+            )
             return (consumer_act.get("name"), consumer_act.get("reference product"))
 
         # Process for each exchange direction.
@@ -716,7 +741,9 @@ class EdgeLCIA:
                 dynamic_groups[key].append((supplier_idx, consumer_idx, supplier_info))
 
             # Process each group
-            for (supp_sig, cons_act_sig), group_edges in tqdm(dynamic_groups.items(), desc="Processing dynamic groups"):
+            for (supp_sig, cons_act_sig), group_edges in tqdm(
+                dynamic_groups.items(), desc="Processing dynamic groups"
+            ):
                 # Use the supplier info from the first edge in the group.
                 rep_supplier = group_edges[0][2]
                 # From the consumer activity signature, extract name and reference product.
@@ -725,7 +752,9 @@ class EdgeLCIA:
                 # Get locations (excluding RoW/RoE) from the technosphere flows that have a weight.
                 other_than_RoW_RoE = [
                     loc
-                    for loc in self.technosphere_flows_lookup.get((name, reference_product), [])
+                    for loc in self.technosphere_flows_lookup.get(
+                        (name, reference_product), []
+                    )
                     if loc not in ["RoW", "RoE"] and loc in weight
                 ]
 
@@ -749,7 +778,9 @@ class EdgeLCIA:
                 if new_cf:
                     # Broadcast the computed CF to all edges in this group.
                     for supplier_idx, consumer_idx, supplier_info in group_edges:
-                        consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
+                        consumer_info = dict(
+                            self.reversed_consumer_lookup[consumer_idx]
+                        )
                         add_cf_entry(
                             cfs_mapping=self.cfs_mapping,
                             supplier_info=supplier_info,
@@ -774,7 +805,7 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
@@ -804,7 +835,9 @@ class EdgeLCIA:
 
         def supplier_signature(supplier_info: dict) -> tuple:
             """Compute a signature from supplier info using required fields."""
-            return tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+            return tuple(
+                (k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields)
+            )
 
         contained_groups = defaultdict(list)
         # Process for each exchange direction.
@@ -830,11 +863,14 @@ class EdgeLCIA:
                 consumer_location = consumer_info.get("location")
                 # Use a composite key: supplier signature and consumer location.
                 key = (supplier_signature(supplier_info), consumer_location)
-                contained_groups[(direction, key)].append((supplier_idx, consumer_idx, supplier_info, consumer_info))
+                contained_groups[(direction, key)].append(
+                    (supplier_idx, consumer_idx, supplier_info, consumer_info)
+                )
 
             # Process each group.
-            for (dir_key, (supp_sig, cons_loc)), group_edges in tqdm(contained_groups.items(),
-                                                                     desc="Processing contained groups"):
+            for (dir_key, (supp_sig, cons_loc)), group_edges in tqdm(
+                contained_groups.items(), desc="Processing contained groups"
+            ):
                 if dir_key != direction:
                     continue
 
@@ -857,7 +893,12 @@ class EdgeLCIA:
                 )
                 if new_cf != 0:
                     # Broadcast the computed CF to every edge in the group.
-                    for supplier_idx, consumer_idx, supplier_info, consumer_info in group_edges:
+                    for (
+                        supplier_idx,
+                        consumer_idx,
+                        supplier_info,
+                        consumer_info,
+                    ) in group_edges:
                         add_cf_entry(
                             cfs_mapping=self.cfs_mapping,
                             supplier_info=supplier_info,
@@ -882,14 +923,17 @@ class EdgeLCIA:
                 cf["consumer"]["location"]: cf["consumer"]["weight"]
                 for cf in self.cfs_mapping
                 if cf["consumer"].get("location")
-                   and cf["consumer"].get("weight") is not None
+                and cf["consumer"].get("weight") is not None
             }
 
         cfs_lookup = preprocess_cfs(self.raw_cfs_data)
 
         # Precompute required supplier fields (excluding non-matching ones).
         self.required_supplier_fields = {
-            k for cf in self.raw_cfs_data for k in cf["supplier"].keys() if k not in {"matrix", "operator", "weight"}
+            k
+            for cf in self.raw_cfs_data
+            for k in cf["supplier"].keys()
+            if k not in {"matrix", "operator", "weight"}
         }
 
         # (Optional) Build a set of candidate supplier signatures from cfs_lookup.
@@ -908,7 +952,9 @@ class EdgeLCIA:
 
         # Helper: compute supplier signature from supplier_info.
         def supplier_signature(supplier_info: dict) -> tuple:
-            return tuple((k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields))
+            return tuple(
+                (k, supplier_info.get(k)) for k in sorted(self.required_supplier_fields)
+            )
 
         # Process each direction separately.
         for direction in ["biosphere-technosphere", "technosphere-technosphere"]:
@@ -934,7 +980,9 @@ class EdgeLCIA:
                 global_groups[sig].append((supplier_idx, consumer_idx, supplier_info))
 
             # Process each group.
-            for sig, group_edges in tqdm(global_groups.items(), desc="Processing global groups"):
+            for sig, group_edges in tqdm(
+                global_groups.items(), desc="Processing global groups"
+            ):
                 # For global CFs, candidate locations are determined for "GLO".
                 locations = find_locations(
                     location="GLO",
@@ -954,7 +1002,9 @@ class EdgeLCIA:
                 if new_cf != 0:
                     # Broadcast the computed CF to every edge in the group.
                     for supplier_idx, consumer_idx, supplier_info in group_edges:
-                        consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
+                        consumer_info = dict(
+                            self.reversed_consumer_lookup[consumer_idx]
+                        )
                         add_cf_entry(
                             cfs_mapping=self.cfs_mapping,
                             supplier_info=supplier_info,
