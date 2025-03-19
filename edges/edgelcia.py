@@ -571,14 +571,6 @@ class EdgeLCIA:
                 # Process each edge in this location group.
                 for supplier_idx, consumer_idx in edges:
                     supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
-                    # Compute a signature for the supplier based on required fields.
-                    supplier_key = tuple(
-                        (k, supplier_info.get(k))
-                        for k in sorted(self.required_supplier_fields)
-                    )
-                    # If this signature isn't in the candidate set, skip this edge.
-                    if supplier_key not in candidate_supplier_keys:
-                        continue
 
                     consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                     new_cf = compute_average_cf(
@@ -657,13 +649,6 @@ class EdgeLCIA:
                 unprocessed_edges, desc="Processing dynamic edges"
             ):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
-                # Pre-filter: compute supplier signature (using required fields).
-                supplier_key = tuple(
-                    (k, supplier_info.get(k))
-                    for k in sorted(self.required_supplier_fields)
-                )
-                if supplier_key not in candidate_supplier_keys:
-                    continue  # Skip edge if supplier signature not found in candidate CF lookup.
 
                 consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
@@ -764,13 +749,6 @@ class EdgeLCIA:
             ):
                 # Get supplier info and compute its signature.
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
-                supplier_key = tuple(
-                    (k, supplier_info.get(k))
-                    for k in sorted(self.required_supplier_fields)
-                )
-                # Skip edge if supplier signature is not present in candidate CF lookup.
-                if supplier_key not in candidate_supplier_keys:
-                    continue
 
                 consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 location = consumer_info.get("location")
@@ -850,14 +828,6 @@ class EdgeLCIA:
                 unprocessed_edges, desc="Processing remaining global edges"
             ):
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
-                # Build the supplier's signature.
-                supplier_key = tuple(
-                    (k, supplier_info.get(k))
-                    for k in sorted(self.required_supplier_fields)
-                )
-                # Skip edge if supplier signature is not in candidate CF lookup.
-                if supplier_key not in candidate_supplier_keys:
-                    continue
 
                 consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 # Find candidate locations for a global (GLO) CF.
