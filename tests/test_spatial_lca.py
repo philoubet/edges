@@ -91,7 +91,7 @@ class TestSpatialLCA(unittest.TestCase):
         }
 
         result = compute_average_cf(
-            constituents, supplier_info, weight, cfs_lookup, region="global"
+            constituents, supplier_info, weight, cfs_lookup, location="global"
         )
         self.assertAlmostEqual(result, 1.4, places=1)
 

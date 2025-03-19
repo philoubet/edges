@@ -2,9 +2,18 @@
 
 [![PyPI version](https://badge.fury.io/py/edges.svg)](https://badge.fury.io/py/csc-brightway)
 
-``edges`` is a Python Library for exchange-based Impact Assessment in 
-Life Cycle Analysis (LCA) for the ``brightway2``/``brightway25`` LCA framework.
+``edges`` is a library allowing flexible Life Cycle Impact Assessment (LCIA) 
+for the ``brightway2``/``brightway25`` LCA framework.
 
+Unlike traditional LCIA methods that apply characterization factors (CFs) solely to `nodes` 
+(e.g., elementary flows), `edges` applies CFs directly on the edges — the exchanges between 
+suppliers and consumers — allowing for more precise and context-sensitive impact characterization.
+
+This approach enables LCIA factors to reflect the specific context of each exchange, including parameters such as:
+
+* Geographic region of production and consumption 
+* Magnitude of flows 
+* Scenario-based parameters (e.g., changing atmospheric conditions)
 
 The ``edges`` Python library offers a novel approach to applying characterization factors 
 (CFs) during the impact assessment phase of Life Cycle Assessment (LCA). 
@@ -24,13 +33,18 @@ Furthermore, ``edges`` supports the calculation of weighted CFs for both static 
 (e.g., RER) and dynamic regions (e.g., RoW), enhancing its ability to model complex 
 and region-specific scenarios.
 
-## Features
+## Key Features
 
-- **National characterization factors** for water-related impacts.
-- **Seamless integration** with the Brightway LCA framework.
-- Implements national and sub-national characterization factors of:
-  - the **AWARE method 1.2c**.
-- Future updates will include additional impact categories.
+* Edge-based CFs: Assign CFs specifically to individual exchanges between processes. 
+* Geographic resolution: Supports 346 national and sub-national regions. 
+* Scenario-based flexibility: Incorporate parameters (e.g., CO₂ atmospheric concentration) directly in CF calculations, enabling dynamic scenario analysis. 
+* Efficient workflow: Clearly separates expensive exchange-mapping tasks (performed once) from inexpensive scenario-based numeric CF evaluations.
+
+Currently, the library provides regionalized CFs for:
+
+* AWARE 1.2c (water scarcity impacts)
+* ImpactWorld+ 2.1
+* GeoPolRisk 1.0
 
 ## Installation
 
@@ -71,14 +85,124 @@ method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
 # Initialize the LCA object
 LCA = EdgeLCIA({act: 1}, method)
 LCA.lci()
-# Perform the LCAI calculation
+# Map CFs to exchanges
+LCA.map_exchanges()
+# If needed, extend the mapping to aggregated and `dynamic` regions (e.g., RoW)
+LCA.map_aggregate_locations()
+LCA.map_dynamic_locations()
+LCA.map_contained_locations()
+# add global CFs to exchanges missing a CF
+LCA.map_remaining_locations_to_global()
+# Evaluate CFs
+LCA.evaluate_cfs()
+# Perform the LCIA calculation
 LCA.lcia()
-LCA.score
+print(LCA.score)
 
 # Print a dataframe with the characterization factors used
 LCA.generate_cf_table()
 
 ```
+
+### Perform parameter-based LCIA
+
+Consider the following LCIA data file (saved under `gwp_example.json`)`:
+
+```json
+[
+  {
+    "supplier": {
+      "name": "Carbon dioxide",
+      "operator": "startswith",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "1.0"
+  },
+  {
+    "supplier": {
+      "name": "Methane, fossil",
+      "operator": "contains",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "28 * (1 + 0.001 * (co2ppm - 410))"
+  },
+  {
+    "supplier": {
+      "name": "Dinitrogen monoxide",
+      "operator": "equals",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "type": "process"
+    },
+    "value": "265 * (1 + 0.0005 * (co2ppm - 410))"
+  }
+]
+
+```
+
+We can perform a parameter-based LCIA calculation as follows:
+
+```python
+
+import bw2data
+from edges import EdgeLCIA
+
+# Select an activity from the LCA database
+act = bw2data.Database("ecoinvent-3.10-cutoff").random()
+
+# Define scenario parameters (e.g., atmospheric CO₂ concentration and time horizon)
+params = {"co2ppm": [410, 450, 500], "h": 100}
+
+# Define an LCIA method (symbolic CF expressions stored in JSON)
+method = ('GWP', 'scenario-dependent', '100 years')
+
+# Initialize LCIA
+lcia = EdgeLCIA(
+   demand={act: 1},
+   filepath="gwp_example.json",
+   parameters=params
+)
+
+# Perform inventory calculations (once)
+lcia.lci()
+
+# Map exchanges to CF entries (once)
+lcia.map_exchanges()
+
+# Optionally, resolve geographic overlaps and disaggregations (once)
+lcia.map_aggregate_locations()
+lcia.map_dynamic_locations()
+lcia.map_remaining_locations_to_global()
+
+# Run scenarios efficiently
+results = []
+for idx in range(lcia.scenario_length):
+    lcia.evaluate_cfs(idx)
+    lcia.lcia()
+    df = lcia.generate_cf_table()
+
+    scenario_result = {
+        "scenario": idx,
+        "co2ppm": params["co2ppm"][idx],
+        "score": lcia.score,
+        "CF_table": df
+    }
+    results.append(scenario_result)
+
+    print(f"Scenario {idx+1} (CO₂ {params['co2ppm'][idx]} ppm): Impact = {lcia.score}")
+    
+```
+
 
 ## Data Sources
 
@@ -102,37 +226,25 @@ If you use the AWARE method, please cite the following publication:
 
 ## Methodology
 
-1. ``edges`` introduces edge-specific characterization factors
-in the characterization matrix of ``bw2calc`` before performing the LCA calculation.
-The characterization factors are stored in the ``data`` folder of the library. 
-Currently, ``edges`` provides characterization factors for 346 national and 
-sub-national regions, based on the [AWARE](https://wulca-waterlca.org/aware/) method,
-based on the location of edge consumers. 
+1. **Exchange Mapping**: Identifies the inventory exchanges matching the CF criteria. Matching can be based on any exchange fields (e.g., name, unit, location, classification, etc.).
 
-2. For specific ``ecoinvent`` regions (e.g., RER, Canada without Quebec, etc.), 
+2. **Scenario Evaluation**: CF values can be defined numerically or symbolically and may depend on parameters (e.g., co2ppm, time horizons). 
+
+3. **Characterization Matrix**: CFs are applied directly to inventory exchanges in the characterization matrix of Brightway, enabling precise context-based LCIA.
+
+Additionally, for regionalized characterization factors, helping functions are available:
+
+* `.map_aggregate_location()`: For specific ``ecoinvent`` regions (e.g., RER, Canada without Quebec, etc.) that do ont have regionalized CFs, 
 ``edges`` computes the weighted average of the characterization factors for the 
 countries included in the region, based either on population or GDP. The weighting 
-key can be selected by the user (weighting by population size by default).
+key can be selected by the user (weighting by population size by default), or it can be provided within the LCIA method file. 
 
-3. For relative regions (e.g., RoW, RoE, etc.), ``edges`` dynamically defines the 
-locations included in the region based on the mathing activities in the LCA database. 
-The weighted average of the characterization factor of the geographies 
-containd in the region is then computed accordingly.
+* `.map_dynamic_locations()`: For relative regions (e.g., RoW, RoE, etc.), ``edges`` dynamically defines the 
+locations included in the region based on the mathing activities in the LCA database. The weighted average of the characterization factor of the geographies containd in the region is then computed accordingly.
 
-### How It Works
+* `.map_disaggregate_locations()`: For locations that do not have regionalized CFs, but are part of larger regions that have a regionalized CF, ``edges`` will attribute such CF to the exchange.
 
-1. **Off-Diagonal Targeting**:
-   - The library identifies specific exchanges between suppliers and consumers in the technosphere (A matrix).
-   - Characterization factors are applied selectively based on these relationships, introducing off-diagonal terms in the characterization matrix (C matrix).
-   - For example, an activity in Region A using resources from Region B can have a distinct characterization factor that reflects the inter-regional transfer's environmental consequences.
-
-2. **Conditional Characterization**:
-   - The characterization factors are conditioned on the **location** (or other attributes) of the activities.
-   - For instance, water scarcity impacts might depend on both the supplier's and consumer's geographical context, assigning higher weights to regions with water stress.
-
-3. **Matrix Adjustment**:
-   - The enriched C matrix now accounts for interactions between different regions and flows. 
-   - Off-diagonal elements (C_ij, where i ≠ j) capture interdependencies, such as the environmental cost of resource transport or upstream emissions.
+* `.map_remaining_locations_to_global()`: For exchanges that do not have a regionalized CF, ``edges`` will attribute the global CF to the exchange. The global CF is defined as the weighted-average of the regionalized CFs, based on the weighting key selected.
 
 
 ## Contributing

@@ -1,0 +1,38 @@
+[
+  {
+    "supplier": {
+      "name": "Carbon dioxide",
+      "operator": "startswith",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "location": "CH"
+    },
+    "value": 1.0
+  },
+  {
+    "supplier": {
+      "name": "Carbon dioxide",
+      "operator": "startswith",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "location": "FR"
+    },
+    "value": 2.0
+  },
+  {
+    "supplier": {
+      "name": "Carbon dioxide",
+      "operator": "startswith",
+      "matrix": "biosphere"
+    },
+    "consumer": {
+      "matrix": "technosphere",
+      "location": "RER"
+    },
+    "value": 3.0
+  }
+]

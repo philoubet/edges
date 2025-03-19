@@ -5,11 +5,13 @@ Utility functions for the LCIA methods implementation.
 import os
 from collections import defaultdict
 import logging
+import math
 
 import bw2data
 import yaml
 from bw2calc import LCA
 from scipy.sparse import lil_matrix
+import numpy as np
 
 from functools import reduce
 import operator
@@ -41,6 +43,17 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+SAFE_GLOBALS = {
+    "__builtins__": None,
+    "abs": abs,
+    "max": max,
+    "min": min,
+    "round": round,
+    "pow": pow,
+    "sqrt": math.sqrt,
+    "exp": math.exp,
+}
 
 
 def format_method_name(name: str) -> tuple:
@@ -154,6 +167,7 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
     Initialize the LCIA matrix. It is a sparse matrix with the
     dimensions of the `inventory` matrix of the LCA object.
     :param lca: The LCA object.
+    :param matrix_type: The type of the matrix.
     :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
     """
     if matrix_type == "biosphere":
@@ -377,3 +391,40 @@ def load_missing_geographies():
 
 def get_str(x):
     return x if isinstance(x, str) else x[-1]
+
+
+def safe_eval(expr, parameters, scenario_idx=0):
+    if isinstance(expr, (int, float)):
+        return float(expr)  # directly return numeric values
+
+    # If expr is a string, evaluate it
+    eval_params = {
+        k: (v[scenario_idx] if isinstance(v, (list, tuple, np.ndarray)) else v)
+        for k, v in parameters.items()
+    }
+
+    try:
+        return eval(expr, SAFE_GLOBALS, eval_params)
+    except NameError as e:
+        missing_param = str(e).split("'")[1]
+        logger.error(f"Missing parameter '{missing_param}' in expression '{expr}'")
+        raise KeyError(
+            f"Missing parameter '{missing_param}' in parameters dictionary."
+        ) from None
+    except Exception as e:
+        logger.error(f"Error evaluating '{expr}': {e}")
+        raise ValueError(f"Invalid expression '{expr}': {e}")
+
+
+def validate_parameter_lengths(parameters):
+    lengths = {
+        len(v) for v in parameters.values() if isinstance(v, (list, tuple, np.ndarray))
+    }
+
+    if not lengths:
+        return 1  # Single scenario if no arrays
+
+    if len(lengths) > 1:
+        raise ValueError(f"Inconsistent lengths in parameter arrays: {lengths}")
+
+    return lengths.pop()
