@@ -53,6 +53,22 @@ geo = Geomatcher()
 missing_geographies = load_missing_geographies()
 
 
+def make_hashable(flow_to_match):
+    return tuple(sorted(flow_to_match.items()))
+
+
+@lru_cache(maxsize=100000)
+def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
+    flow_to_match = dict(flow_to_match_hashable)
+    required_fields = set(required_fields_tuple)
+    return match_with_index(
+        flow_to_match,
+        cached_match_with_index.index,
+        cached_match_with_index.lookup_mapping,
+        required_fields,
+    )
+
+
 def compute_average_cf(
     candidates: list,
     supplier_info: dict,
@@ -381,13 +397,16 @@ class EdgeLCIA:
             self.biosphere_edges = set(list(zip(*self.lca.inventory.nonzero())))
 
         unique_biosphere_flows = set(x[0] for x in self.biosphere_edges)
-        self.biosphere_flows = get_flow_matrix_positions(
-            {
-                k: v
-                for k, v in self.lca.biosphere_dict.items()
-                if v in unique_biosphere_flows
-            }
-        )
+        unique_technosphere_flows = set(x[0] for x in self.technosphere_edges)
+
+        if len(unique_biosphere_flows) > 0:
+            self.biosphere_flows = get_flow_matrix_positions(
+                {
+                    k: v
+                    for k, v in self.lca.biosphere_dict.items()
+                    if v in unique_biosphere_flows
+                }
+            )
 
         self.technosphere_flows = get_flow_matrix_positions(
             {k: v for k, v in self.lca.activity_dict.items()}
@@ -916,12 +935,6 @@ class EdgeLCIA:
         }
 
     def map_exchanges(self):
-        """
-        Based on search criteria under `supplier` and `consumer` keys,
-        identify the exchanges in the inventory matrix.
-        """
-
-        # Preprocess flows and lookups
         self.preprocess_lookups()
 
         edges = (
@@ -939,26 +952,23 @@ class EdgeLCIA:
             self.consumer_lookup, self.required_consumer_fields
         )
 
-        # tdqm progress bar
         print("Identifying eligible exchanges...")
+
         for cf in tqdm(self.raw_cfs_data):
-            # Generate supplier candidates
-            supplier_candidates = match_with_index(
-                cf["supplier"],
-                supplier_index,
-                self.supplier_lookup,
-                self.required_supplier_fields,
+            cached_match_with_index.index = supplier_index
+            cached_match_with_index.lookup_mapping = self.supplier_lookup
+            supplier_candidates = cached_match_with_index(
+                make_hashable(cf["supplier"]),
+                tuple(sorted(self.required_supplier_fields)),
             )
 
-            # Generate consumer candidates
-            consumer_candidates = match_with_index(
-                cf["consumer"],
-                consumer_index,
-                self.consumer_lookup,
-                self.required_consumer_fields,
+            cached_match_with_index.index = consumer_index
+            cached_match_with_index.lookup_mapping = self.consumer_lookup
+            consumer_candidates = cached_match_with_index(
+                make_hashable(cf["consumer"]),
+                tuple(sorted(self.required_consumer_fields)),
             )
 
-            # Create pairs of supplier and consumer candidates
             positions = [
                 (supplier, consumer)
                 for supplier in supplier_candidates
@@ -971,7 +981,7 @@ class EdgeLCIA:
                 "consumer": cf["consumer"],
                 "direction": f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}",
                 "positions": positions,
-                "value": cf["value"],  # Don't evaluate yet
+                "value": cf["value"],
             }
 
             self.cfs_mapping.append(cf_entry)
