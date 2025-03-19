@@ -44,6 +44,9 @@ license-files = ["LICENSE"]
 include-package-data = true
 packages = ["edges"]
 
+[tool.setuptools.package-data]
+edges = ["data/**/*"]
+
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 version = {attr = "edges.__version__"}
