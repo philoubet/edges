@@ -58,3 +58,4 @@ tests/*.env
 .Trashes
 ehthumbs.db
 Thumbs.db
+/.idea/.gitignore
