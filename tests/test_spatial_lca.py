@@ -10,17 +10,17 @@ from edges.edgelcia import (
     preprocess_flows,
     compute_average_cf,
 )
-from edges.utils import initialize_lcia_matrix
+from edges.utils import initialize_lcia_matrix, safe_eval
 
 
-class TestSpatialLCA(unittest.TestCase):
+class TestEdgeLCIA(unittest.TestCase):
 
     def setUp(self):
         # Set up mock data for testing
         self.demand = {bw2data.Database("Mobility example").random(): 1.0}
         self.method = ("AWARE 1.2c", "Country", "unspecified", "yearly")
         self.weight = "population"
-        self.lca = EdgeLCIA(self.demand, method=self.method, lcia_weight=self.weight)
+        self.lca = EdgeLCIA(demand=self.demand, method=self.method, weight=self.weight)
 
         # Mock data for testing
         self.lca.technosphere_flows = [
@@ -69,13 +69,13 @@ class TestSpatialLCA(unittest.TestCase):
 
     def test_initialize_lcia_matrix(self):
         # Mock LCA inventory matrix for testing
-        self.lca.inventory = np.zeros((3, 3))
-        matrix = initialize_lcia_matrix(self.lca)
+        self.lca.lca.inventory = np.zeros((3, 3))
+        matrix = initialize_lcia_matrix(self.lca.lca)
         self.assertEqual(matrix.shape, (3, 3))
 
     def test_preprocess_flows(self):
         # Test preprocessing of flows into a lookup dictionary
-        mandatory_fields = ["name", "reference product"]
+        mandatory_fields = {"name", "reference product"}
         lookup = preprocess_flows(self.lca.technosphere_flows, mandatory_fields)
         self.assertIn((("name", "flow1"), ("reference product", "product1")), lookup)
         self.assertEqual(len(lookup), 2)
@@ -90,17 +90,15 @@ class TestSpatialLCA(unittest.TestCase):
             "EU": [{"supplier": {"matrix": "technosphere"}, "value": 2.0}],
         }
 
-        result = compute_average_cf(
-            constituents, supplier_info, weight, cfs_lookup, location="global"
-        )
-        self.assertAlmostEqual(result, 1.4, places=1)
+        result = compute_average_cf(constituents, supplier_info, weight, cfs_lookup)
+        self.assertAlmostEqual(safe_eval(result, {}), 1.4, places=1)
 
 
 bw2data.projects.set_current("test")
 
 try:
     bw2data.projects.migrate_project_25()
-except AssertionError:
+except AttributeError:
     pass
 
 if "Mobility example" not in bw2data.databases:

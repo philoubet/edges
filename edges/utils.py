@@ -5,9 +5,7 @@ Utility functions for the LCIA methods implementation.
 import os
 from collections import defaultdict
 import logging
-import math
 
-import bw2data
 import yaml
 from bw2calc import LCA
 from scipy.sparse import lil_matrix
@@ -17,6 +15,7 @@ from functools import reduce
 import operator
 
 from bw2data import __version__ as bw2data_version
+
 
 if isinstance(bw2data_version, str):
     bw2data_version = tuple(map(int, bw2data_version.split(".")))
@@ -43,17 +42,6 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
-
-SAFE_GLOBALS = {
-    "__builtins__": None,
-    "abs": abs,
-    "max": max,
-    "min": min,
-    "round": round,
-    "pow": pow,
-    "sqrt": math.sqrt,
-    "exp": math.exp,
-}
 
 
 def format_method_name(name: str) -> tuple:
@@ -393,7 +381,7 @@ def get_str(x):
     return x if isinstance(x, str) else x[-1]
 
 
-def safe_eval(expr, parameters, scenario_idx=0):
+def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
     if isinstance(expr, (int, float)):
         return float(expr)  # directly return numeric values
 

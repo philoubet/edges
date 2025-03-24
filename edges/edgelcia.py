@@ -3,7 +3,7 @@ Module that implements the base class for country-specific life-cycle
 impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
-
+import math
 from collections import defaultdict
 import logging
 import json
@@ -359,12 +359,13 @@ class EdgeLCIA:
         weight: Optional[str] = "population",
         parameters: Optional[dict] = None,
         filepath: Optional[str] = None,
+        allowed_functions: Optional[dict] = None,
     ):
         """
         Initialize the SpatialLCA class, ensuring `method` is not passed to
         `prepare_lca_inputs` while still being available in the class.
         """
-
+        self.demand = demand
         self.weights = None
         self.consumer_lookup = None
         self.required_supplier_fields = None
@@ -399,11 +400,26 @@ class EdgeLCIA:
         self.parameters = parameters or {}
         self.scenario_length = validate_parameter_lengths(parameters=self.parameters)
 
-        self.lca = bw2calc.LCA(demand=demand)
+        self.lca = bw2calc.LCA(demand=self.demand)
         self.load_raw_lcia_data()
         self.cfs_mapping = []
 
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+        self.SAFE_GLOBALS = {
+            "__builtins__": None,
+            "abs": abs,
+            "max": max,
+            "min": min,
+            "round": round,
+            "pow": pow,
+            "sqrt": math.sqrt,
+            "exp": math.exp,
+        }
+
+        # Allow user-defined trusted functions explicitly
+        if allowed_functions:
+            self.SAFE_GLOBALS.update(allowed_functions)
 
     def lci(self) -> None:
 
@@ -473,7 +489,12 @@ class EdgeLCIA:
 
         for cf in self.cfs_mapping:
             symbolic_expr = cf["value"]
-            numeric_value = safe_eval(symbolic_expr, self.parameters, scenario_idx)
+            numeric_value = safe_eval(
+                expr=symbolic_expr,
+                parameters=self.parameters,
+                scenario_idx=scenario_idx,
+                SAFE_GLOBALS=self.SAFE_GLOBALS
+            )
 
             scenario_cf = {
                 "supplier": cf["supplier"],
@@ -1591,3 +1612,4 @@ class EdgeLCIA:
         df = df[[col for col in column_order if col in df.columns]]
 
         return df
+
