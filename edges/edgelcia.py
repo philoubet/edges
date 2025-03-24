@@ -3,6 +3,7 @@ Module that implements the base class for country-specific life-cycle
 impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
+
 import math
 from collections import defaultdict
 import logging
@@ -493,7 +494,7 @@ class EdgeLCIA:
                 expr=symbolic_expr,
                 parameters=self.parameters,
                 scenario_idx=scenario_idx,
-                SAFE_GLOBALS=self.SAFE_GLOBALS
+                SAFE_GLOBALS=self.SAFE_GLOBALS,
             )
 
             scenario_cf = {
@@ -1612,4 +1613,3 @@ class EdgeLCIA:
         df = df[[col for col in column_order if col in df.columns]]
 
         return df
-
