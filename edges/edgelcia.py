@@ -75,7 +75,7 @@ def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
         cached_match_with_index.index,
         cached_match_with_index.lookup_mapping,
         required_fields,
-        cached_match_with_index.reversed_lookup
+        cached_match_with_index.reversed_lookup,
     )
 
 
@@ -154,7 +154,7 @@ def compute_average_cf(
                 dataset_classifications = consumer_info.get("classifications", [])
 
                 if cf_classifications and not matches_classifications(
-                        cf_classifications, dataset_classifications
+                    cf_classifications, dataset_classifications
                 ):
                     continue
 
@@ -235,6 +235,7 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     """
     lookup = {}
     for flow in flows_list:
+
         def make_value_hashable(v):
             if isinstance(v, list):
                 return tuple(v)
@@ -268,7 +269,10 @@ def build_index(lookup: dict, required_fields: set) -> dict:
                 index[k].setdefault(v, []).append((key, positions))
     return index
 
-def matches_classifications(cf_classifications: list[str], dataset_classifications: list[tuple]) -> bool:
+
+def matches_classifications(
+    cf_classifications: list[str], dataset_classifications: list[tuple]
+) -> bool:
     """
     Check if any code in cf_classifications appears in the dataset classifications.
     The dataset classifications are a list of (scheme, code: description) tuples.
@@ -303,7 +307,11 @@ def match_operator(value: str, target: str, operator: str) -> bool:
 
 
 def match_with_index(
-    flow_to_match: dict, index: dict, lookup_mapping: dict, required_fields: set, reversed_lookup: dict,
+    flow_to_match: dict,
+    index: dict,
+    lookup_mapping: dict,
+    required_fields: set,
+    reversed_lookup: dict,
 ) -> list:
     """
     Match a flow against the lookup using the inverted index.
@@ -373,7 +381,11 @@ def match_with_index(
                     for s, code in dataset_classifications
                     if s.lower() == scheme.lower()
                 ]
-                if any(code.startswith(prefix) for prefix in cf_codes for code in relevant_codes):
+                if any(
+                    code.startswith(prefix)
+                    for prefix in cf_codes
+                    for code in relevant_codes
+                ):
                     classified_matches.append(pos)
                     break
 
@@ -973,7 +985,12 @@ class EdgeLCIA:
                         cfs_lookup=cfs_lookup,
                     )
                     if new_cf:
-                        for supplier_idx, consumer_idx, supplier_info, consumer_info in group_edges:
+                        for (
+                            supplier_idx,
+                            consumer_idx,
+                            supplier_info,
+                            consumer_info,
+                        ) in group_edges:
                             add_cf_entry(
                                 cfs_mapping=self.cfs_mapping,
                                 supplier_info=supplier_info,
@@ -1323,7 +1340,12 @@ class EdgeLCIA:
                     )
                     if new_cf != 0:
                         # Broadcast the computed CF to every edge in the group.
-                        for supplier_idx, consumer_idx, supplier_info, consumer_info in group_edges:
+                        for (
+                            supplier_idx,
+                            consumer_idx,
+                            supplier_info,
+                            consumer_info,
+                        ) in group_edges:
                             consumer_info = dict(
                                 self.reversed_consumer_lookup[consumer_idx]
                             )
@@ -1451,7 +1473,9 @@ class EdgeLCIA:
 
             cached_match_with_index.index = consumer_index
             cached_match_with_index.lookup_mapping = self.consumer_lookup
-            cached_match_with_index.reversed_lookup = self.position_to_technosphere_flows_lookup
+            cached_match_with_index.reversed_lookup = (
+                self.position_to_technosphere_flows_lookup
+            )
             consumer_candidates = cached_match_with_index(
                 make_hashable(cf["consumer"]),
                 tuple(sorted(self.required_consumer_fields)),
@@ -1465,9 +1489,7 @@ class EdgeLCIA:
             ]
 
             # Filter out positions that have already been seen
-            positions = [
-                pos for pos in positions if pos not in seen_positions
-            ]
+            positions = [pos for pos in positions if pos not in seen_positions]
 
             if positions:
                 cf_entry = {
