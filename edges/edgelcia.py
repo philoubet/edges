@@ -56,7 +56,14 @@ missing_geographies = load_missing_geographies()
 
 
 def make_hashable(flow_to_match):
-    return tuple(sorted(flow_to_match.items()))
+    def convert(value):
+        if isinstance(value, list):
+            return tuple(value)
+        elif isinstance(value, dict):
+            return tuple(sorted((k, convert(v)) for k, v in value.items()))
+        return value
+
+    return tuple(sorted((k, convert(v)) for k, v in flow_to_match.items()))
 
 
 @cache
@@ -68,6 +75,7 @@ def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
         cached_match_with_index.index,
         cached_match_with_index.lookup_mapping,
         required_fields,
+        cached_match_with_index.reversed_lookup
     )
 
 
@@ -90,6 +98,7 @@ def get_shares(candidates: tuple):
 def compute_average_cf(
     candidates: list,
     supplier_info: dict,
+    consumer_info: dict,
     weight: dict,
     cfs_lookup: dict,
 ):
@@ -140,6 +149,15 @@ def compute_average_cf(
                     break
 
             if candidate_matches:
+
+                cf_classifications = cf.get("consumer", {}).get("classifications")
+                dataset_classifications = consumer_info.get("classifications", [])
+
+                if cf_classifications and not matches_classifications(
+                        cf_classifications, dataset_classifications
+                ):
+                    continue
+
                 if matched_cf is not None:
                     raise ValueError(
                         f"Multiple CFs found for {supplier_info} in {loc}: {cf} and {matched_cf}"
@@ -217,11 +235,16 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     """
     lookup = {}
     for flow in flows_list:
-        key = tuple(
-            (k, v) for k, v in flow.items() if k in mandatory_fields and v is not None
-        )
-        # add key to lookup if fields and values match requirements
+        def make_value_hashable(v):
+            if isinstance(v, list):
+                return tuple(v)
+            return v
 
+        key = tuple(
+            (k, make_value_hashable(v))
+            for k, v in flow.items()
+            if k in mandatory_fields and v is not None
+        )
         lookup.setdefault(key, []).append(flow["position"])
     return lookup
 
@@ -244,6 +267,17 @@ def build_index(lookup: dict, required_fields: set) -> dict:
             if k in required_fields:
                 index[k].setdefault(v, []).append((key, positions))
     return index
+
+def matches_classifications(cf_classifications: list[str], dataset_classifications: list[tuple]) -> bool:
+    """
+    Check if any code in cf_classifications appears in the dataset classifications.
+    The dataset classifications are a list of (scheme, code: description) tuples.
+    """
+    for scheme, value in dataset_classifications:
+        code = value.split(":")[0].strip()
+        if any(code.startswith(cf_code) for cf_code in cf_classifications):
+            return True
+    return False
 
 
 @cache
@@ -269,7 +303,7 @@ def match_operator(value: str, target: str, operator: str) -> bool:
 
 
 def match_with_index(
-    flow_to_match: dict, index: dict, lookup_mapping: dict, required_fields: set
+    flow_to_match: dict, index: dict, lookup_mapping: dict, required_fields: set, reversed_lookup: dict,
 ) -> list:
     """
     Match a flow against the lookup using the inverted index.
@@ -318,6 +352,34 @@ def match_with_index(
     matches = []
     for key in candidate_keys:
         matches.extend(lookup_mapping.get(key, []))
+
+    if "classifications" in flow_to_match:
+        cf_classifications_by_scheme = flow_to_match["classifications"]
+
+        if isinstance(cf_classifications_by_scheme, tuple):
+            cf_classifications_by_scheme = dict(cf_classifications_by_scheme)
+
+        classified_matches = []
+
+        for pos in matches:
+            flow = reversed_lookup.get(pos)
+            if not flow:
+                continue
+            dataset_classifications = flow.get("classifications", [])
+
+            for scheme, cf_codes in cf_classifications_by_scheme.items():
+                relevant_codes = [
+                    code.split(":")[0].strip()
+                    for s, code in dataset_classifications
+                    if s.lower() == scheme.lower()
+                ]
+                if any(code.startswith(prefix) for prefix in cf_codes for code in relevant_codes):
+                    classified_matches.append(pos)
+                    break
+
+        if classified_matches:
+            return classified_matches
+
     return matches
 
 
@@ -454,6 +516,16 @@ class EdgeLCIA:
 
         self.reversed_activity, _, self.reversed_biosphere = self.lca.reverse_dict()
 
+        # Build technosphere flow lookups as in the original implementation.
+        self.position_to_technosphere_flows_lookup = {
+            i["position"]: {k: i[k] for k in i if k != "position"}
+            for i in self.technosphere_flows
+        }
+        self.position_to_biosphere_flows_lookup = {
+            i["position"]: {k: i[k] for k in i if k != "position"}
+            for i in self.biosphere_flows
+        }
+
     def build_technosphere_edges_matrix(self):
         """
         Generate a matrix with the technosphere flows.
@@ -578,8 +650,6 @@ class EdgeLCIA:
 
         print("Handling static regions...")
 
-        from collections import defaultdict
-
         # Helper: compute supplier equality signature (using only the required fields).
         def equality_supplier_signature(sup_info: dict) -> tuple:
             filtered = {
@@ -688,6 +758,7 @@ class EdgeLCIA:
                         supplier_info=group_edges[0][
                             2
                         ],  # Use representative supplier info.
+                        consumer_info=group_edges[0][3],
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
@@ -724,6 +795,7 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=supplier_info,
+                        consumer_info=consumer_info,
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
@@ -781,18 +853,11 @@ class EdgeLCIA:
                 )
                 candidate_supplier_keys.add(key)
 
-        # Build technosphere flow lookups as in the original implementation.
-        self.position_to_technosphere_flows_lookup = {
-            i["position"]: {k: i[k] for k in i if k != "position"}
-            for i in self.technosphere_flows
-        }
         for flow in self.technosphere_flows:
             key = (flow["name"], flow.get("reference product"))
             self.technosphere_flows_lookup[key].append(flow["location"])
 
         print("Handling dynamic regions...")
-
-        from collections import defaultdict
 
         # Helper: compute supplier equality signature (using only required fields).
         def equality_supplier_signature(supplier_info: dict) -> tuple:
@@ -845,7 +910,7 @@ class EdgeLCIA:
                 if sig in candidate_supplier_keys:
                     cons_act_sig = consumer_act_signature(consumer_idx)
                     prefiltered_groups[(sig, cons_act_sig)].append(
-                        (supplier_idx, consumer_idx, supplier_info)
+                        (supplier_idx, consumer_idx, supplier_info, consumer_info)
                     )
                 else:
                     if any(x in cf_operators for x in ["contains", "startswith"]):
@@ -903,14 +968,12 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=rep_supplier,
+                        consumer_info=group_edges[0][-1],
                         weight=weight,
                         cfs_lookup=cfs_lookup,
                     )
                     if new_cf:
-                        for supplier_idx, consumer_idx, supplier_info in group_edges:
-                            consumer_info = dict(
-                                self.reversed_consumer_lookup[consumer_idx]
-                            )
+                        for supplier_idx, consumer_idx, supplier_info, consumer_info in group_edges:
                             add_cf_entry(
                                 cfs_mapping=self.cfs_mapping,
                                 supplier_info=supplier_info,
@@ -963,6 +1026,7 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=supplier_info,
+                        consumer_info=consumer_info,
                         weight=weight,
                         cfs_lookup=cfs_lookup,
                     )
@@ -1020,8 +1084,6 @@ class EdgeLCIA:
                 candidate_supplier_keys.add(key)
 
         print("Handling contained locations...")
-
-        from collections import defaultdict
 
         # Helper: compute supplier equality signature (using only required fields).
         def equality_supplier_signature(supplier_info: dict) -> tuple:
@@ -1195,8 +1257,6 @@ class EdgeLCIA:
 
         print("Handling remaining exchanges...")
 
-        from collections import defaultdict
-
         # Helper: compute supplier equality signature (using only required fields).
         def equality_supplier_signature(supplier_info: dict) -> tuple:
             filtered = {
@@ -1226,10 +1286,11 @@ class EdgeLCIA:
                 if (supplier_idx, consumer_idx) in processed_flows:
                     continue
                 supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
+                consumer_info = dict(self.reversed_consumer_lookup[consumer_idx])
                 sig = equality_supplier_signature(supplier_info)
                 if sig in candidate_supplier_keys:
                     prefiltered_groups[sig].append(
-                        (supplier_idx, consumer_idx, supplier_info)
+                        (supplier_idx, consumer_idx, supplier_info, consumer_info)
                     )
                 else:
                     if any(x in cf_operators for x in ["contains", "startswith"]):
@@ -1252,15 +1313,17 @@ class EdgeLCIA:
 
                     # Use the supplier info from the first edge in the group.
                     rep_supplier = group_edges[0][2]
+                    consumer_info = dict(group_edges[0][3])
                     new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=rep_supplier,
+                        consumer_info=consumer_info,
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
                     if new_cf != 0:
                         # Broadcast the computed CF to every edge in the group.
-                        for supplier_idx, consumer_idx, supplier_info in group_edges:
+                        for supplier_idx, consumer_idx, supplier_info, consumer_info in group_edges:
                             consumer_info = dict(
                                 self.reversed_consumer_lookup[consumer_idx]
                             )
@@ -1287,6 +1350,7 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
+                        consumer_info=consumer_info,
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
@@ -1308,7 +1372,7 @@ class EdgeLCIA:
         """
 
         # Constants for ignored fields
-        IGNORED_FIELDS = {"matrix", "operator", "weight"}
+        IGNORED_FIELDS = {"matrix", "operator", "weight", "classifications"}
 
         # Precompute required fields for faster access
         self.required_supplier_fields = {
@@ -1374,9 +1438,12 @@ class EdgeLCIA:
 
         print("Identifying eligible exchanges...")
 
+        seen_positions = []
+
         for cf in tqdm(self.raw_cfs_data):
             cached_match_with_index.index = supplier_index
             cached_match_with_index.lookup_mapping = self.supplier_lookup
+            cached_match_with_index.reversed_lookup = self.reversed_supplier_lookup
             supplier_candidates = cached_match_with_index(
                 make_hashable(cf["supplier"]),
                 tuple(sorted(self.required_supplier_fields)),
@@ -1384,6 +1451,7 @@ class EdgeLCIA:
 
             cached_match_with_index.index = consumer_index
             cached_match_with_index.lookup_mapping = self.consumer_lookup
+            cached_match_with_index.reversed_lookup = self.position_to_technosphere_flows_lookup
             consumer_candidates = cached_match_with_index(
                 make_hashable(cf["consumer"]),
                 tuple(sorted(self.required_consumer_fields)),
@@ -1396,15 +1464,23 @@ class EdgeLCIA:
                 if (supplier, consumer) in edges
             ]
 
-            cf_entry = {
-                "supplier": cf["supplier"],
-                "consumer": cf["consumer"],
-                "direction": f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}",
-                "positions": positions,
-                "value": cf["value"],
-            }
+            # Filter out positions that have already been seen
+            positions = [
+                pos for pos in positions if pos not in seen_positions
+            ]
 
-            self.cfs_mapping.append(cf_entry)
+            if positions:
+                cf_entry = {
+                    "supplier": cf["supplier"],
+                    "consumer": cf["consumer"],
+                    "direction": f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}",
+                    "positions": positions,
+                    "value": cf["value"],
+                }
+
+                self.cfs_mapping.append(cf_entry)
+
+                seen_positions.extend(positions)
 
         self.update_unprocessed_edges()
 
