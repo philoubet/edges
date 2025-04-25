@@ -535,7 +535,6 @@ class EdgeLCIA:
             for i in self.technosphere_flows
         }
 
-
     def build_technosphere_edges_matrix(self):
         """
         Generate a matrix with the technosphere flows.
