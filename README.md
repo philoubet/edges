@@ -42,7 +42,7 @@ and region-specific scenarios.
 
 Currently, the library provides regionalized CFs for:
 
-* AWARE 1.2c (water scarcity impacts)
+* AWARE 2.0 (water scarcity impacts)
 * ImpactWorld+ 2.1
 * GeoPolRisk 1.0
 
@@ -275,4 +275,4 @@ The development of this library was entirely supported by the French agency for
 Energy [ADEME](https://www.ademe.fr/), via the financing of the [HySPI](https://www.isige.minesparis.psl.eu/actualite/le-projet-hyspi/) project.
 The HySPI project aims to provide a methodological framework to analyze and 
 quantify, in a systemic and prospective manner, the environmental impacts of the 
-decarbonization strategy of H2 production used by the industry in France.
+decarbonization strategy of hydrogen production used by the industry in France.

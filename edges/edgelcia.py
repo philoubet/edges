@@ -375,19 +375,20 @@ def match_with_index(
                 continue
             dataset_classifications = flow.get("classifications", [])
 
-            for scheme, cf_codes in cf_classifications_by_scheme.items():
-                relevant_codes = [
-                    code.split(":")[0].strip()
-                    for s, code in dataset_classifications
-                    if s.lower() == scheme.lower()
-                ]
-                if any(
-                    code.startswith(prefix)
-                    for prefix in cf_codes
-                    for code in relevant_codes
-                ):
-                    classified_matches.append(pos)
-                    break
+            if dataset_classifications:
+                for scheme, cf_codes in cf_classifications_by_scheme.items():
+                    relevant_codes = [
+                        code.split(":")[0].strip()
+                        for s, code in dataset_classifications
+                        if s.lower() == scheme.lower()
+                    ]
+                    if any(
+                        code.startswith(prefix)
+                        for prefix in cf_codes
+                        for code in relevant_codes
+                    ):
+                        classified_matches.append(pos)
+                        break
 
         if classified_matches:
             return classified_matches
@@ -533,10 +534,7 @@ class EdgeLCIA:
             i["position"]: {k: i[k] for k in i if k != "position"}
             for i in self.technosphere_flows
         }
-        self.position_to_biosphere_flows_lookup = {
-            i["position"]: {k: i[k] for k in i if k != "position"}
-            for i in self.biosphere_flows
-        }
+
 
     def build_technosphere_edges_matrix(self):
         """
@@ -1175,6 +1173,7 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=rep_supplier,
+                        consumer_info=consumer_info,
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
@@ -1215,6 +1214,7 @@ class EdgeLCIA:
                     new_cf = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
+                        consumer_info=consumer_info,
                         weight=self.weights,
                         cfs_lookup=cfs_lookup,
                     )
