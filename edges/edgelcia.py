@@ -587,7 +587,7 @@ class EdgeLCIA:
             self.scenario_cfs.append(scenario_cf)
 
         self.scenario_cfs = format_data(self.scenario_cfs, self.weight)
-        self.cfs_number = len({x["value"] for x in self.scenario_cfs})
+        self.cfs_number = len(self.scenario_cfs)
 
     def update_unprocessed_edges(self):
         self.processed_biosphere_edges = {
@@ -1540,20 +1540,16 @@ class EdgeLCIA:
             )
         rows.append(["Method name", fill(str(self.method), width=45)])
         rows.append(["Data file", fill(self.filepath.stem, width=45)])
-        rows.append(["Unique CFs in method", self.cfs_number])
+        rows.append(["CFs in method", self.cfs_number])
         rows.append(
             [
-                "Unique CFs used",
+                "CFs used",
                 len(
-                    list(
-                        set(
-                            [
-                                x["value"]
-                                for x in self.cfs_mapping
-                                if len(x["positions"]) > 0
-                            ]
-                        )
-                    )
+                    [
+                        x["value"]
+                        for x in self.cfs_mapping
+                        if len(x["positions"]) > 0
+                    ]
                 ),
             ]
         )
