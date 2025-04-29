@@ -2,15 +2,15 @@ from edges import EdgeLCIA
 import bw2data
 
 bw2data.projects.set_current("bw25_ei310")
-#bw2data.projects.set_current("ecoinvent-3.10-cutoff")
+# bw2data.projects.set_current("ecoinvent-3.10-cutoff")
 
 # act = bw2data.Database("ecoinvent-3.10.1-cutoff").random()
 act = bw2data.Database("ecoinvent-3.10-cutoff").random()
 print(act)
 
 # method = ("AWARE 1.2c", "Country", "non", "irri", "yearly")
-method = ('ImpactWorld+ 2.1', 'Freshwater acidification', 'midpoint')
-#method = ("GeoPolRisk", "paired", "2024")
+method = ("ImpactWorld+ 2.1", "Freshwater acidification", "midpoint")
+# method = ("GeoPolRisk", "paired", "2024")
 
 LCA = EdgeLCIA({act: 1}, method)
 LCA.lci()
