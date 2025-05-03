@@ -1,8 +1,9 @@
 # ``edges``: Edge-based life cycle impact assessment
 
-<div style="text-align:center">
-<img src="https://github.com/Laboratory-for-Energy-Systems-Analysis/edges/blob/main/assets/permanent/edges_logo_light_gray_bg_dark_frame.png" height="100"/>
-</div>
+<p align="center">
+  <img src="https://github.com/Laboratory-for-Energy-Systems-Analysis/edges/blob/main/assets/permanent/edges_logo_light_gray_bg_dark_frame.png" height="100"/>
+</p>
+
 
 [![PyPI version](https://badge.fury.io/py/edges.svg)](https://badge.fury.io/py/csc-brightway)
 
