@@ -1544,13 +1544,7 @@ class EdgeLCIA:
         rows.append(
             [
                 "CFs used",
-                len(
-                    [
-                        x["value"]
-                        for x in self.cfs_mapping
-                        if len(x["positions"]) > 0
-                    ]
-                ),
+                len([x["value"] for x in self.cfs_mapping if len(x["positions"]) > 0]),
             ]
         )
 
