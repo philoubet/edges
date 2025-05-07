@@ -12,6 +12,8 @@ from typing import Optional
 from pathlib import Path
 import bw2calc
 import numpy as np
+import sparse
+from sparse import COO
 
 from scipy.sparse import coo_matrix
 from constructive_geometries import Geomatcher
@@ -21,6 +23,7 @@ import bw2data
 from tqdm import tqdm
 from textwrap import fill
 from functools import cache
+from scipy import stats
 
 from .utils import (
     format_data,
@@ -103,7 +106,7 @@ def compute_average_cf(
     cfs_lookup: dict,
 ):
     if not candidates:
-        return 0
+        return 0, None
     if len(candidates) == 1:
         valid_candidates = [(candidates[0], 1)]
     else:
@@ -113,64 +116,63 @@ def compute_average_cf(
             if w is not None:
                 valid_candidates.append((c, w))
         if not valid_candidates:
-            return 0
+            return 0, None
 
     candidates, shares = get_shares(tuple(valid_candidates))
 
     IGNORED_FIELDS = {"matrix", "operator", "weight"}
-    # Precompute the supplier keys and their values once
     supplier_keys = [k for k in supplier_info if k not in IGNORED_FIELDS]
     supplier_items = {k: supplier_info.get(k) for k in supplier_keys}
+    _match_operator = match_operator
 
     expressions = []
-    # Alias the match_operator function locally to reduce attribute lookups.
-    _match_operator = match_operator
+    matched_cfs = []
 
     for loc, share in zip(candidates, shares):
         loc_cfs = cfs_lookup.get(loc, [])
         matched_cf = None
 
-        # Iterate over CFs for the candidate location
         for cf in loc_cfs:
             cf_supplier = cf.get("supplier")
             if not cf_supplier:
                 continue
 
-            # Get operator once (default "equals")
             operator = cf_supplier.get("operator", "equals")
-            candidate_matches = True
+            if not all(
+                _match_operator(supplier_items.get(k), cf_supplier.get(k), operator)
+                for k in supplier_keys
+            ):
+                continue
 
-            # Inline the matching logic for each key
-            for key in supplier_keys:
-                s_val = supplier_items.get(key)
-                t_val = cf_supplier.get(key)
-                if not _match_operator(s_val, t_val, operator):
-                    candidate_matches = False
-                    break
+            cf_classifications = cf.get("consumer", {}).get("classifications")
+            dataset_classifications = consumer_info.get("classifications", [])
 
-            if candidate_matches:
+            if cf_classifications and not matches_classifications(cf_classifications, dataset_classifications):
+                continue
 
-                cf_classifications = cf.get("consumer", {}).get("classifications")
-                dataset_classifications = consumer_info.get("classifications", [])
-
-                if cf_classifications and not matches_classifications(
-                    cf_classifications, dataset_classifications
-                ):
-                    continue
-
-                if matched_cf is not None:
-                    raise ValueError(
-                        f"Multiple CFs found for {supplier_info} in {loc}: {cf} and {matched_cf}"
-                    )
-                matched_cf = cf
+            if matched_cf is not None:
+                raise ValueError(
+                    f"Multiple CFs found for {supplier_info} in {loc}: {cf} and {matched_cf}"
+                )
+            matched_cf = cf
 
         if matched_cf is not None:
-            cf_expr = matched_cf["value"]
-            expressions.append(f"({share:.6f} * ({cf_expr}))")
+            matched_cfs.append((matched_cf, share))
+            expressions.append(f"({share:.6f} * ({matched_cf['value']}))")
 
     if not expressions:
-        return 0
-    return " + ".join(expressions)
+        return 0, None
+
+    # Build weighted average value expression (symbolic string)
+    combined_expr = " + ".join(expressions)
+
+    # If only one CF is matched, pass it back directly (preserve its uncertainty)
+    if len(matched_cfs) == 1:
+        return combined_expr, matched_cfs[0][0]
+
+
+    return combined_expr, None
+
 
 
 @cache
@@ -396,7 +398,7 @@ def match_with_index(
     return matches
 
 
-def add_cf_entry(cfs_mapping, supplier_info, consumer_info, direction, indices, value):
+def add_cf_entry(cfs_mapping, supplier_info, consumer_info, direction, indices, value, uncertainty):
 
     if direction == "biosphere-technosphere":
         supplier_info["matrix"] = "biosphere"
@@ -411,6 +413,10 @@ def add_cf_entry(cfs_mapping, supplier_info, consumer_info, direction, indices, 
         "direction": direction,
         "value": value,
     }
+
+    if uncertainty is not None:
+        entry["uncertainty"] = uncertainty
+
     cfs_mapping.append(entry)
 
 
@@ -436,6 +442,9 @@ class EdgeLCIA:
         parameters: Optional[dict] = None,
         filepath: Optional[str] = None,
         allowed_functions: Optional[dict] = None,
+        use_distributions: Optional[bool] = False,
+        random_seed: Optional[int] = None,
+        iterations: Optional[int] = 100,
     ):
         """
         Initialize the SpatialLCA class, ensuring `method` is not passed to
@@ -475,6 +484,10 @@ class EdgeLCIA:
         self.weight: str = weight
         self.parameters = parameters or {}
         self.scenario_length = validate_parameter_lengths(parameters=self.parameters)
+        self.use_distributions = use_distributions
+        self.iterations = iterations
+        self.random_seed = random_seed if random_seed is not None else 42
+        self.random_state = np.random.default_rng(self.random_seed)
 
         self.lca = bw2calc.LCA(demand=self.demand)
         self.load_raw_lcia_data()
@@ -566,28 +579,123 @@ class EdgeLCIA:
         with open(self.filepath, "r", encoding="utf-8") as f:
             self.raw_cfs_data = format_data(data=json.load(f), weight=self.weight)
 
-    def evaluate_cfs(self, scenario_idx=0):
-        self.scenario_cfs = []
+    def sample_cf_distribution(self, cf: dict, n: int) -> np.ndarray:
+        """
+        Generate n random CF values from the distribution info in the 'uncertainty' key.
+        Falls back to a constant value if no uncertainty. If 'negative' == 1, samples are negated.
+        """
+        if not self.use_distributions or "uncertainty" not in cf:
+            return np.full(n, cf["value"], dtype=float)
 
-        for cf in self.cfs_mapping:
-            symbolic_expr = cf["value"]
-            numeric_value = safe_eval(
-                expr=symbolic_expr,
-                parameters=self.parameters,
-                scenario_idx=scenario_idx,
-                SAFE_GLOBALS=self.SAFE_GLOBALS,
+        unc = cf["uncertainty"]
+        dist_name = unc["distribution"]
+        params = unc["parameters"]
+        negative = unc.get("negative", 0)
+
+        if dist_name == "discrete_empirical":
+            values = np.array(params["values"])
+            weights = np.array(params["weights"])
+            if weights.sum() != 0:
+                weights = weights / weights.sum()
+            samples = self.random_state.choice(values, size=n, p=weights)
+
+        elif dist_name == "uniform":
+            samples = self.random_state.uniform(params["minimum"], params["maximum"], size=n)
+
+        elif dist_name == "triang":
+            left = params["minimum"]
+            mode = params["loc"]
+            right = params["maximum"]
+            samples = self.random_state.triangular(left, mode, right, size=n)
+
+        elif dist_name == "normal":
+            samples = self.random_state.normal(loc=params["loc"], scale=params["scale"], size=n)
+            samples = np.clip(samples, params["minimum"], params["maximum"])
+
+        elif dist_name == "lognorm":
+            s = params["shape_a"]
+            loc = params["loc"]
+            scale = params["scale"]
+            samples = stats.lognorm.rvs(s=s, loc=loc, scale=scale, size=n, random_state=self.random_state)
+            samples = np.clip(samples, params["minimum"], params["maximum"])
+
+        elif dist_name == "beta":
+            a = params["shape_a"]
+            b = params["shape_b"]
+            x = self.random_state.beta(a, b, size=n)
+            samples = params["loc"] + x * params["scale"]
+            samples = np.clip(samples, params["minimum"], params["maximum"])
+
+        elif dist_name == "gamma":
+            samples = self.random_state.gamma(params["shape_a"], params["scale"], size=n) + params["loc"]
+            samples = np.clip(samples, params["minimum"], params["maximum"])
+
+        elif dist_name == "weibull_min":
+            c = params["shape_a"]
+            loc = params["loc"]
+            scale = params["scale"]
+            samples = stats.weibull_min.rvs(c=c, loc=loc, scale=scale, size=n, random_state=self.random_state)
+            samples = np.clip(samples, params["minimum"], params["maximum"])
+
+        else:
+            samples = np.full(n, cf["value"], dtype=float)
+
+        return -samples if negative else samples
+
+    def evaluate_cfs(self, scenario_idx=0):
+        if self.use_distributions and self.iterations > 1:
+            coords_i, coords_j, coords_k = [], [], []
+            data = []
+
+            for cf in self.cfs_mapping:
+                samples = self.sample_cf_distribution(cf, n=self.iterations)
+                for i, j in cf["positions"]:
+                    for k in range(self.iterations):
+                        coords_i.append(i)
+                        coords_j.append(j)
+                        coords_k.append(k)
+                        data.append(samples[k])
+
+            matrix_type = "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
+            n_rows, n_cols = self.lca.inventory.shape if matrix_type == "biosphere" else self.lca.technosphere_matrix.shape
+
+            self.characterization_matrix = sparse.COO(
+                coords=[coords_i, coords_j, coords_k],
+                data=data,
+                shape=(n_rows, n_cols, self.iterations)
             )
 
-            scenario_cf = {
-                "supplier": cf["supplier"],
-                "consumer": cf["consumer"],
-                "positions": cf["positions"],
-                "value": numeric_value,
-            }
-            self.scenario_cfs.append(scenario_cf)
+            self.scenario_cfs = [{"positions": [], "value": 0}]  # dummy
+            self.cfs_number = len(self.cfs_mapping)
 
-        self.scenario_cfs = format_data(self.scenario_cfs, self.weight)
-        self.cfs_number = len(self.scenario_cfs)
+        else:
+            # Fallback to 2D
+            self.scenario_cfs = []
+            for cf in self.cfs_mapping:
+                if isinstance(cf["value"], str):
+                    value = safe_eval(cf["value"], parameters=self.parameters, scenario_idx=scenario_idx,
+                                      SAFE_GLOBALS=self.SAFE_GLOBALS)
+                else:
+                    value = cf["value"]
+
+                self.scenario_cfs.append({
+                    "supplier": cf["supplier"],
+                    "consumer": cf["consumer"],
+                    "positions": cf["positions"],
+                    "value": value,
+                })
+
+            self.scenario_cfs = format_data(self.scenario_cfs, self.weight)
+            self.cfs_number = len(self.scenario_cfs)
+
+            matrix_type = "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
+            self.characterization_matrix = initialize_lcia_matrix(self.lca, matrix_type=matrix_type)
+
+            for cf in self.scenario_cfs:
+                for i, j in cf["positions"]:
+                    self.characterization_matrix[i, j] = cf["value"]
+
+            self.characterization_matrix = self.characterization_matrix.tocsr()
 
     def update_unprocessed_edges(self):
         self.processed_biosphere_edges = {
@@ -762,7 +870,7 @@ class EdgeLCIA:
                     desc=f"Processing static groups (pass 1)",
                 ):
 
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=group_edges[0][-1],
                         supplier_info=group_edges[0][
                             2
@@ -787,6 +895,7 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
+                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                             )
 
             if len(remaining_edges) > 0:
@@ -801,7 +910,7 @@ class EdgeLCIA:
                     remaining_edges,
                     desc=f"Processing remaining static edges (pass 2)",
                 ):
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
@@ -816,6 +925,7 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
+                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                         )
 
         # Finally, update the list of unprocessed edges.
@@ -974,7 +1084,7 @@ class EdgeLCIA:
                     if not candidate_locations:
                         continue
 
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=rep_supplier,
                         consumer_info=group_edges[0][-1],
@@ -995,6 +1105,7 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
+                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                             )
 
             if len(remaining_edges) > 0:
@@ -1037,7 +1148,7 @@ class EdgeLCIA:
                     if not candidate_locations:
                         continue
 
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=candidate_locations,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
@@ -1052,6 +1163,7 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
+                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                         )
 
         # Update unprocessed edges after processing.
@@ -1169,7 +1281,7 @@ class EdgeLCIA:
 
                     # Use the representative supplier info from the group.
                     rep_supplier = group_edges[0][2]
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=locations,
                         supplier_info=rep_supplier,
                         consumer_info=consumer_info,
@@ -1191,6 +1303,7 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
+                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                             )
 
             if len(remaining_edges) > 0:
@@ -1210,7 +1323,7 @@ class EdgeLCIA:
                         weights_available=tuple(self.weights.keys()),
                         containing=False,
                     )
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
@@ -1225,6 +1338,7 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
+                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                         )
 
         # Finally, update the list of unprocessed edges.
@@ -1330,7 +1444,7 @@ class EdgeLCIA:
                     # Use the supplier info from the first edge in the group.
                     rep_supplier = group_edges[0][2]
                     consumer_info = dict(group_edges[0][3])
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=locations,
                         supplier_info=rep_supplier,
                         consumer_info=consumer_info,
@@ -1355,6 +1469,7 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
+                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                             )
 
             if len(remaining_edges) > 0:
@@ -1368,7 +1483,7 @@ class EdgeLCIA:
                         location="GLO",
                         weights_available=tuple(self.weights.keys()),
                     )
-                    new_cf = compute_average_cf(
+                    new_cf, matched_cf_obj = compute_average_cf(
                         candidates=locations,
                         supplier_info=supplier_info,
                         consumer_info=consumer_info,
@@ -1383,6 +1498,7 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
+                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
                         )
 
         self.update_unprocessed_edges()
@@ -1497,6 +1613,7 @@ class EdgeLCIA:
                     "direction": f"{cf['supplier']['matrix']}-{cf['consumer']['matrix']}",
                     "positions": positions,
                     "value": cf["value"],
+                    "uncertainty": cf.get("uncertainty"),
                 }
 
                 self.cfs_mapping.append(cf_entry)
@@ -1589,71 +1706,69 @@ class EdgeLCIA:
 
         print(table)
 
-    def fill_characterization_matrix(self):
-        matrix_type = "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
-
-        self.characterization_matrix = initialize_lcia_matrix(
-            self.lca, matrix_type=matrix_type
-        )
-
-        for cf in self.scenario_cfs:
-            for supplier, consumer in cf["positions"]:
-                self.characterization_matrix[supplier, consumer] = cf["value"]
-
-        self.characterization_matrix = self.characterization_matrix.tocsr()
-
     def lcia(self) -> None:
         """
         Calculate the LCIA score.
+
+        - If `characterization_matrix` is 3D (i.e. uncertainty with multiple iterations),
+          compute one LCIA score per iteration and return an array.
+        - If `characterization_matrix` is 2D (deterministic case), compute a single LCIA score.
         """
+        is_biosphere = len(self.biosphere_edges) > 0
 
-        self.fill_characterization_matrix()
+        if self.use_distributions and self.iterations > 1:
+            inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
 
-        if len(self.biosphere_edges) > 0:
-            self.characterized_inventory = self.characterization_matrix.multiply(
-                self.lca.inventory
-            )
+            # Convert 2D inventory to sparse.COO
+            inventory_coo = sparse.COO.from_scipy_sparse(inventory)
+
+            # Broadcast inventory shape for multiplication
+            inv_expanded = inventory_coo[:, :, None]  # (i, j, 1)
+
+            # Element-wise multiply
+            characterized = self.characterization_matrix * inv_expanded
+
+            # Sum across dimensions i and j to get 1 value per iteration
+            self.characterized_inventory = characterized
+            self.score = characterized.sum(axis=(0, 1))
+
         else:
-            self.characterized_inventory = self.characterization_matrix.multiply(
-                self.technosphere_flow_matrix
-            )
-
-        self.score = self.characterized_inventory.sum()
+            inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+            self.characterized_inventory = self.characterization_matrix.multiply(inventory)
+            self.score = self.characterized_inventory.sum()
 
     def generate_cf_table(self) -> pd.DataFrame:
         """
         Generate a pandas DataFrame with the evaluated characterization factors
-        used in the current scenario.
+        used in the current scenario. If distributions were used, show summary statistics.
         """
 
-        # Ensure evaluated CFs are available
         if not self.scenario_cfs:
-            raise ValueError("You must run evaluate_cfs_for_scenario() first.")
+            raise ValueError("You must run evaluate_cfs() first.")
 
-        # Determine matrix type clearly
-        is_biosphere = all(
-            cf["supplier"]["matrix"] == "biosphere" for cf in self.scenario_cfs
-        )
+        is_biosphere = True if self.technosphere_flow_matrix is None else False
 
-        inventory = (
-            self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
-        )
-
+        inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
         data = []
 
-        for cf in self.scenario_cfs:
-            for supplier_idx, consumer_idx in cf["positions"]:
-                consumer = bw2data.get_activity(self.reversed_activity[consumer_idx])
+        if self.use_distributions and hasattr(self, "characterization_matrix") and hasattr(self, "iterations"):
+            cm = self.characterization_matrix
 
-                supplier = bw2data.get_activity(
-                    self.reversed_biosphere[supplier_idx]
+            for i, j in zip(*cm.sum(axis=2).nonzero()):  # Only loop over nonzero entries
+                consumer = bw2data.get_activity(self.reversed_activity[j])
+                supplier = (
+                    bw2data.get_activity(self.reversed_biosphere[i])
                     if is_biosphere
-                    else self.reversed_activity[supplier_idx]
+                    else bw2data.get_activity(self.reversed_activity[i])
                 )
 
-                amount = inventory[supplier_idx, consumer_idx]
-                cf_value = cf["value"]
-                impact = amount * cf_value
+                samples = np.array(cm[i, j, :].todense()).flatten().astype(float)
+                amount = inventory[i, j]
+                impact_samples = amount * samples
+
+                # Percentiles
+                cf_p = np.percentile(samples, [5, 25, 50, 75, 95])
+                impact_p = np.percentile(impact_samples, [5, 25, 50, 75, 95])
 
                 entry = {
                     "supplier name": supplier["name"],
@@ -1661,29 +1776,72 @@ class EdgeLCIA:
                     "consumer reference product": consumer.get("reference product"),
                     "consumer location": consumer.get("location"),
                     "amount": amount,
-                    "CF": cf_value,
-                    "impact": impact,
+                    "CF (mean)": samples.mean(),
+                    "CF (std)": samples.std(),
+                    "CF (min)": samples.min(),
+                    "CF (5th)": cf_p[0],
+                    "CF (25th)": cf_p[1],
+                    "CF (50th)": cf_p[2],
+                    "CF (75th)": cf_p[3],
+                    "CF (95th)": cf_p[4],
+                    "CF (max)": samples.max(),
+                    "impact (mean)": impact_samples.mean(),
+                    "impact (std)": impact_samples.std(),
+                    "impact (min)": impact_samples.min(),
+                    "impact (5th)": impact_p[0],
+                    "impact (25th)": impact_p[1],
+                    "impact (50th)": impact_p[2],
+                    "impact (75th)": impact_p[3],
+                    "impact (95th)": impact_p[4],
+                    "impact (max)": impact_samples.max(),
                 }
 
                 if is_biosphere:
-                    entry.update({"supplier categories": supplier.get("categories")})
+                    entry["supplier categories"] = supplier.get("categories")
                 else:
-                    entry.update(
-                        {
-                            "supplier reference product": supplier.get(
-                                "reference product"
-                            ),
-                            "supplier location": supplier.get("location"),
-                        }
-                    )
+                    entry["supplier reference product"] = supplier.get("reference product")
+                    entry["supplier location"] = supplier.get("location")
 
                 data.append(entry)
 
-        # Create the DataFrame
+        else:
+            # Deterministic fallback
+            for cf in self.scenario_cfs:
+                for i, j in cf["positions"]:
+                    consumer = bw2data.get_activity(self.reversed_activity[j])
+                    supplier = (
+                        bw2data.get_activity(self.reversed_biosphere[i])
+                        if is_biosphere
+                        else bw2data.get_activity(self.reversed_activity[i])
+                    )
+
+                    amount = inventory[i, j]
+                    cf_value = cf["value"]
+                    impact = amount * cf_value
+
+                    entry = {
+                        "supplier name": supplier["name"],
+                        "consumer name": consumer["name"],
+                        "consumer reference product": consumer.get("reference product"),
+                        "consumer location": consumer.get("location"),
+                        "amount": amount,
+                        "CF": cf_value,
+                        "impact": impact,
+                    }
+
+                    if is_biosphere:
+                        entry["supplier categories"] = supplier.get("categories")
+                    else:
+                        entry["supplier reference product"] = supplier.get("reference product")
+                        entry["supplier location"] = supplier.get("location")
+
+                    data.append(entry)
+
+        # Convert to DataFrame
         df = pd.DataFrame(data)
 
-        # Specify desired column order
-        column_order = [
+        # Order columns
+        preferred_columns = [
             "supplier name",
             "supplier categories",
             "supplier reference product",
@@ -1691,12 +1849,35 @@ class EdgeLCIA:
             "consumer name",
             "consumer reference product",
             "consumer location",
-            "amount",
-            "CF",
-            "impact",
+            "amount"
         ]
 
-        # Reorder columns, ignoring missing columns gracefully
-        df = df[[col for col in column_order if col in df.columns]]
+        # Add CF or CF summary columns
+        if self.use_distributions:
+            preferred_columns += [
+                "CF (mean)",
+                "CF (std)",
+                "CF (min)",
+                "CF (5th)",
+                "CF (25th)",
+                "CF (50th)",
+                "CF (75th)",
+                "CF (95th)",
+                "CF (max)",
+                "impact (mean)",
+                "impact (std)",
+                "impact (min)",
+                "impact (5th)",
+                "impact (25th)",
+                "impact (50th)",
+                "impact (75th)",
+                "impact (95th)",
+                "impact (max)"
+            ]
+        else:
+            preferred_columns += ["CF", "impact"]
+
+        df = df[[col for col in preferred_columns if col in df.columns]]
 
         return df
+
