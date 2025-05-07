@@ -147,7 +147,9 @@ def compute_average_cf(
             cf_classifications = cf.get("consumer", {}).get("classifications")
             dataset_classifications = consumer_info.get("classifications", [])
 
-            if cf_classifications and not matches_classifications(cf_classifications, dataset_classifications):
+            if cf_classifications and not matches_classifications(
+                cf_classifications, dataset_classifications
+            ):
                 continue
 
             if matched_cf is not None:
@@ -170,9 +172,7 @@ def compute_average_cf(
     if len(matched_cfs) == 1:
         return combined_expr, matched_cfs[0][0]
 
-
     return combined_expr, None
-
 
 
 @cache
@@ -398,7 +398,9 @@ def match_with_index(
     return matches
 
 
-def add_cf_entry(cfs_mapping, supplier_info, consumer_info, direction, indices, value, uncertainty):
+def add_cf_entry(
+    cfs_mapping, supplier_info, consumer_info, direction, indices, value, uncertainty
+):
 
     if direction == "biosphere-technosphere":
         supplier_info["matrix"] = "biosphere"
@@ -600,7 +602,9 @@ class EdgeLCIA:
             samples = self.random_state.choice(values, size=n, p=weights)
 
         elif dist_name == "uniform":
-            samples = self.random_state.uniform(params["minimum"], params["maximum"], size=n)
+            samples = self.random_state.uniform(
+                params["minimum"], params["maximum"], size=n
+            )
 
         elif dist_name == "triang":
             left = params["minimum"]
@@ -609,14 +613,18 @@ class EdgeLCIA:
             samples = self.random_state.triangular(left, mode, right, size=n)
 
         elif dist_name == "normal":
-            samples = self.random_state.normal(loc=params["loc"], scale=params["scale"], size=n)
+            samples = self.random_state.normal(
+                loc=params["loc"], scale=params["scale"], size=n
+            )
             samples = np.clip(samples, params["minimum"], params["maximum"])
 
         elif dist_name == "lognorm":
             s = params["shape_a"]
             loc = params["loc"]
             scale = params["scale"]
-            samples = stats.lognorm.rvs(s=s, loc=loc, scale=scale, size=n, random_state=self.random_state)
+            samples = stats.lognorm.rvs(
+                s=s, loc=loc, scale=scale, size=n, random_state=self.random_state
+            )
             samples = np.clip(samples, params["minimum"], params["maximum"])
 
         elif dist_name == "beta":
@@ -627,14 +635,19 @@ class EdgeLCIA:
             samples = np.clip(samples, params["minimum"], params["maximum"])
 
         elif dist_name == "gamma":
-            samples = self.random_state.gamma(params["shape_a"], params["scale"], size=n) + params["loc"]
+            samples = (
+                self.random_state.gamma(params["shape_a"], params["scale"], size=n)
+                + params["loc"]
+            )
             samples = np.clip(samples, params["minimum"], params["maximum"])
 
         elif dist_name == "weibull_min":
             c = params["shape_a"]
             loc = params["loc"]
             scale = params["scale"]
-            samples = stats.weibull_min.rvs(c=c, loc=loc, scale=scale, size=n, random_state=self.random_state)
+            samples = stats.weibull_min.rvs(
+                c=c, loc=loc, scale=scale, size=n, random_state=self.random_state
+            )
             samples = np.clip(samples, params["minimum"], params["maximum"])
 
         else:
@@ -656,13 +669,19 @@ class EdgeLCIA:
                         coords_k.append(k)
                         data.append(samples[k])
 
-            matrix_type = "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
-            n_rows, n_cols = self.lca.inventory.shape if matrix_type == "biosphere" else self.lca.technosphere_matrix.shape
+            matrix_type = (
+                "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
+            )
+            n_rows, n_cols = (
+                self.lca.inventory.shape
+                if matrix_type == "biosphere"
+                else self.lca.technosphere_matrix.shape
+            )
 
             self.characterization_matrix = sparse.COO(
                 coords=[coords_i, coords_j, coords_k],
                 data=data,
-                shape=(n_rows, n_cols, self.iterations)
+                shape=(n_rows, n_cols, self.iterations),
             )
 
             self.scenario_cfs = [{"positions": [], "value": 0}]  # dummy
@@ -673,23 +692,33 @@ class EdgeLCIA:
             self.scenario_cfs = []
             for cf in self.cfs_mapping:
                 if isinstance(cf["value"], str):
-                    value = safe_eval(cf["value"], parameters=self.parameters, scenario_idx=scenario_idx,
-                                      SAFE_GLOBALS=self.SAFE_GLOBALS)
+                    value = safe_eval(
+                        cf["value"],
+                        parameters=self.parameters,
+                        scenario_idx=scenario_idx,
+                        SAFE_GLOBALS=self.SAFE_GLOBALS,
+                    )
                 else:
                     value = cf["value"]
 
-                self.scenario_cfs.append({
-                    "supplier": cf["supplier"],
-                    "consumer": cf["consumer"],
-                    "positions": cf["positions"],
-                    "value": value,
-                })
+                self.scenario_cfs.append(
+                    {
+                        "supplier": cf["supplier"],
+                        "consumer": cf["consumer"],
+                        "positions": cf["positions"],
+                        "value": value,
+                    }
+                )
 
             self.scenario_cfs = format_data(self.scenario_cfs, self.weight)
             self.cfs_number = len(self.scenario_cfs)
 
-            matrix_type = "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
-            self.characterization_matrix = initialize_lcia_matrix(self.lca, matrix_type=matrix_type)
+            matrix_type = (
+                "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
+            )
+            self.characterization_matrix = initialize_lcia_matrix(
+                self.lca, matrix_type=matrix_type
+            )
 
             for cf in self.scenario_cfs:
                 for i, j in cf["positions"]:
@@ -895,7 +924,11 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
-                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                                uncertainty=(
+                                    matched_cf_obj.get("uncertainty")
+                                    if matched_cf_obj
+                                    else None
+                                ),
                             )
 
             if len(remaining_edges) > 0:
@@ -925,7 +958,11 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
-                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                            uncertainty=(
+                                matched_cf_obj.get("uncertainty")
+                                if matched_cf_obj
+                                else None
+                            ),
                         )
 
         # Finally, update the list of unprocessed edges.
@@ -1105,7 +1142,11 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
-                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                                uncertainty=(
+                                    matched_cf_obj.get("uncertainty")
+                                    if matched_cf_obj
+                                    else None
+                                ),
                             )
 
             if len(remaining_edges) > 0:
@@ -1163,7 +1204,11 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
-                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                            uncertainty=(
+                                matched_cf_obj.get("uncertainty")
+                                if matched_cf_obj
+                                else None
+                            ),
                         )
 
         # Update unprocessed edges after processing.
@@ -1303,7 +1348,11 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
-                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                                uncertainty=(
+                                    matched_cf_obj.get("uncertainty")
+                                    if matched_cf_obj
+                                    else None
+                                ),
                             )
 
             if len(remaining_edges) > 0:
@@ -1338,7 +1387,11 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
-                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                            uncertainty=(
+                                matched_cf_obj.get("uncertainty")
+                                if matched_cf_obj
+                                else None
+                            ),
                         )
 
         # Finally, update the list of unprocessed edges.
@@ -1469,7 +1522,11 @@ class EdgeLCIA:
                                 direction=direction,
                                 indices=[(supplier_idx, consumer_idx)],
                                 value=new_cf,
-                                uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                                uncertainty=(
+                                    matched_cf_obj.get("uncertainty")
+                                    if matched_cf_obj
+                                    else None
+                                ),
                             )
 
             if len(remaining_edges) > 0:
@@ -1498,7 +1555,11 @@ class EdgeLCIA:
                             direction=direction,
                             indices=[(supplier_idx, consumer_idx)],
                             value=new_cf,
-                            uncertainty=matched_cf_obj.get("uncertainty") if matched_cf_obj else None,
+                            uncertainty=(
+                                matched_cf_obj.get("uncertainty")
+                                if matched_cf_obj
+                                else None
+                            ),
                         )
 
         self.update_unprocessed_edges()
@@ -1717,7 +1778,9 @@ class EdgeLCIA:
         is_biosphere = len(self.biosphere_edges) > 0
 
         if self.use_distributions and self.iterations > 1:
-            inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+            inventory = (
+                self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+            )
 
             # Convert 2D inventory to sparse.COO
             inventory_coo = sparse.COO.from_scipy_sparse(inventory)
@@ -1733,8 +1796,12 @@ class EdgeLCIA:
             self.score = characterized.sum(axis=(0, 1))
 
         else:
-            inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
-            self.characterized_inventory = self.characterization_matrix.multiply(inventory)
+            inventory = (
+                self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+            )
+            self.characterized_inventory = self.characterization_matrix.multiply(
+                inventory
+            )
             self.score = self.characterized_inventory.sum()
 
     def generate_cf_table(self) -> pd.DataFrame:
@@ -1748,13 +1815,21 @@ class EdgeLCIA:
 
         is_biosphere = True if self.technosphere_flow_matrix is None else False
 
-        inventory = self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+        inventory = (
+            self.lca.inventory if is_biosphere else self.technosphere_flow_matrix
+        )
         data = []
 
-        if self.use_distributions and hasattr(self, "characterization_matrix") and hasattr(self, "iterations"):
+        if (
+            self.use_distributions
+            and hasattr(self, "characterization_matrix")
+            and hasattr(self, "iterations")
+        ):
             cm = self.characterization_matrix
 
-            for i, j in zip(*cm.sum(axis=2).nonzero()):  # Only loop over nonzero entries
+            for i, j in zip(
+                *cm.sum(axis=2).nonzero()
+            ):  # Only loop over nonzero entries
                 consumer = bw2data.get_activity(self.reversed_activity[j])
                 supplier = (
                     bw2data.get_activity(self.reversed_biosphere[i])
@@ -1799,7 +1874,9 @@ class EdgeLCIA:
                 if is_biosphere:
                     entry["supplier categories"] = supplier.get("categories")
                 else:
-                    entry["supplier reference product"] = supplier.get("reference product")
+                    entry["supplier reference product"] = supplier.get(
+                        "reference product"
+                    )
                     entry["supplier location"] = supplier.get("location")
 
                 data.append(entry)
@@ -1832,7 +1909,9 @@ class EdgeLCIA:
                     if is_biosphere:
                         entry["supplier categories"] = supplier.get("categories")
                     else:
-                        entry["supplier reference product"] = supplier.get("reference product")
+                        entry["supplier reference product"] = supplier.get(
+                            "reference product"
+                        )
                         entry["supplier location"] = supplier.get("location")
 
                     data.append(entry)
@@ -1849,7 +1928,7 @@ class EdgeLCIA:
             "consumer name",
             "consumer reference product",
             "consumer location",
-            "amount"
+            "amount",
         ]
 
         # Add CF or CF summary columns
@@ -1872,7 +1951,7 @@ class EdgeLCIA:
                 "impact (50th)",
                 "impact (75th)",
                 "impact (95th)",
-                "impact (max)"
+                "impact (max)",
             ]
         else:
             preferred_columns += ["CF", "impact"]
@@ -1880,4 +1959,3 @@ class EdgeLCIA:
         df = df[[col for col in preferred_columns if col in df.columns]]
 
         return df
-
