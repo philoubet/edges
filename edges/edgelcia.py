@@ -584,8 +584,17 @@ class EdgeLCIA:
         Generate n random CF values from the distribution info in the 'uncertainty' key.
         Falls back to a constant value if no uncertainty. If 'negative' == 1, samples are negated.
         """
-        if not self.use_distributions or "uncertainty" not in cf:
-            return np.full(n, cf["value"], dtype=float)
+        if not self.use_distributions or cf.get("uncertainty") is None:
+            # If value is a string (expression), evaluate once
+            value = cf["value"]
+            if isinstance(value, str):
+                value = safe_eval(
+                    expr=value,
+                    parameters=self.parameters,
+                    scenario_idx=0,
+                    SAFE_GLOBALS=self.SAFE_GLOBALS,
+                )
+            return np.full(n, value, dtype=float)
 
         unc = cf["uncertainty"]
         dist_name = unc["distribution"]
