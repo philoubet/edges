@@ -514,6 +514,7 @@ class EdgeLCIA:
         # Accept both "parameters" and "scenarios" for flexibility
         self.parameters = parameters or {}
 
+
         self.scenario = scenario  # New: store default scenario
         self.scenario_length = validate_parameter_lengths(parameters=self.parameters)
         self.use_distributions = use_distributions
