@@ -13,6 +13,9 @@ import numpy as np
 
 from functools import reduce
 import operator
+from functools import lru_cache
+import hashlib
+import json
 
 from bw2data import __version__ as bw2data_version
 
@@ -43,6 +46,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_eval_cache = {}
 
 def format_method_name(name: str) -> tuple:
     """
@@ -102,21 +106,33 @@ def check_presence_of_required_fields(data: list):
         ), f"Invalid operator in {cf}."
 
 
-def format_data(data: list, weight: str) -> list:
+def format_data(data: dict, weight: str) -> [list, dict]:
     """
     Format the data for the LCIA method.
     :param data: The data for the LCIA method.
     :return: The formatted data for the LCIA method.
     """
 
-    for cf in data:
+    assert all(x in data for x in ("name", "version", "unit", "exchanges")), "Missing required fields in data."
+
+    # Extract and attach scenario-specific parameters if present
+    scenario_parameters = data.get("parameters", {})
+
+    for cf in data["exchanges"]:
         for category in ["supplier", "consumer"]:
             for field, value in cf.get(category, {}).items():
                 if field == "categories":
                     cf[category][field] = tuple(value)
 
-    check_presence_of_required_fields(data)
-    return add_population_and_gdp_data(data=data, weight=weight)
+    check_presence_of_required_fields(data["exchanges"])
+
+    formatted_exchanges = add_population_and_gdp_data(data=data["exchanges"], weight=weight)
+
+    metadata = {k: v for k, v in data.items() if k != "exchanges"}
+    if scenario_parameters:
+        metadata["parameters"] = scenario_parameters
+
+    return formatted_exchanges, metadata
 
 
 def add_population_and_gdp_data(data: list, weight: str) -> list:
@@ -258,19 +274,37 @@ def get_flow_matrix_positions(mapping: dict) -> list:
     return result
 
 
-def preprocess_cfs(cfs: list) -> dict:
+def preprocess_cfs(cf_list, by="consumer"):
     """
-    Preprocess the characterization factors into a dictionary for faster lookup.
-    :param cfs: List of characterization factors.
-    :return: A dictionary indexed by consumer location.
-    """
-    cfs_lookup = defaultdict(list)
-    for cf in cfs:
-        location = cf["consumer"].get("location")
-        if location:
-            cfs_lookup[location].append(cf)
-    return cfs_lookup
+    Group CFs by location from either 'consumer', 'supplier', or both.
 
+    :param cf_list: List of characterization factors (CFs)
+    :param by: One of 'consumer', 'supplier', or 'both'
+    :return: defaultdict of location -> list of CFs
+    """
+    assert by in {"consumer", "supplier", "both"}, "'by' must be 'consumer', 'supplier', or 'both'"
+
+    lookup = defaultdict(list)
+
+    for cf in cf_list:
+        consumer_loc = cf.get("consumer", {}).get("location")
+        supplier_loc = cf.get("supplier", {}).get("location")
+
+        if by == "consumer":
+            if consumer_loc:
+                lookup[consumer_loc].append(cf)
+
+        elif by == "supplier":
+            if supplier_loc:
+                lookup[supplier_loc].append(cf)
+
+        elif by == "both":
+            if consumer_loc:
+                lookup[consumer_loc].append(cf)
+            elif supplier_loc:
+                lookup[supplier_loc].append(cf)
+
+    return lookup
 
 def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> list:
     """
@@ -403,6 +437,22 @@ def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
         logger.error(f"Error evaluating '{expr}': {e}")
         raise ValueError(f"Invalid expression '{expr}': {e}")
 
+def safe_eval_cached(expr: str, parameters: dict, scenario_idx: str, SAFE_GLOBALS: dict):
+    # Convert parameters into a hashable string key
+    key = (
+        expr,
+        scenario_idx,
+        json.dumps(parameters, sort_keys=True),  # string representation
+    )
+    cache_key = hashlib.md5(str(key).encode()).hexdigest()
+
+    if cache_key in _eval_cache:
+        return _eval_cache[cache_key]
+
+    result = safe_eval(expr, parameters, SAFE_GLOBALS=SAFE_GLOBALS, scenario_idx=scenario_idx)
+    _eval_cache[cache_key] = result
+    return result
+
 
 def validate_parameter_lengths(parameters):
     lengths = {
@@ -416,3 +466,4 @@ def validate_parameter_lengths(parameters):
         raise ValueError(f"Inconsistent lengths in parameter arrays: {lengths}")
 
     return lengths.pop()
+
