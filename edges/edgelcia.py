@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 geo = Geomatcher()
 missing_geographies = load_missing_geographies()
 
+
 def make_hashable(flow_to_match):
     def convert(value):
         if isinstance(value, list):
@@ -109,7 +110,9 @@ def compute_average_cf(
         return 0, None
 
     # Filter out candidates with zero weight
-    valid_candidates = [(loc, weight[loc]) for loc in candidates if loc in weight and weight[loc] > 0]
+    valid_candidates = [
+        (loc, weight[loc]) for loc in candidates if loc in weight and weight[loc] > 0
+    ]
     if not valid_candidates:
         return 0, None
 
@@ -179,7 +182,6 @@ def compute_average_cf(
     return combined_expr, None
 
 
-
 @cache
 def find_locations(
     location: str,
@@ -246,11 +248,14 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     lookup = {}
 
     for flow in flows_list:
+
         def make_value_hashable(v):
             if isinstance(v, list):
                 return tuple(v)
             if isinstance(v, dict):
-                return tuple(sorted((k, make_value_hashable(val)) for k, val in v.items()))
+                return tuple(
+                    sorted((k, make_value_hashable(val)) for k, val in v.items())
+                )
             return v
 
         # Build a hashable key from mandatory fields (if any are present)
@@ -514,7 +519,6 @@ class EdgeLCIA:
         # Accept both "parameters" and "scenarios" for flexibility
         self.parameters = parameters or {}
 
-
         self.scenario = scenario  # New: store default scenario
         self.scenario_length = validate_parameter_lengths(parameters=self.parameters)
         self.use_distributions = use_distributions
@@ -623,11 +627,17 @@ class EdgeLCIA:
 
         # Fallback to default scenario
         if self.scenario and self.scenario not in self.parameters:
-            raise ValueError(f"Scenario '{self.scenario}' not found in available parameters: {list(self.parameters)}")
+            raise ValueError(
+                f"Scenario '{self.scenario}' not found in available parameters: {list(self.parameters)}"
+            )
 
     def detect_cf_grouping_mode(self):
-        has_consumer_locations = any("location" in cf.get("consumer", {}) for cf in self.raw_cfs_data)
-        has_supplier_locations = any("location" in cf.get("supplier", {}) for cf in self.raw_cfs_data)
+        has_consumer_locations = any(
+            "location" in cf.get("consumer", {}) for cf in self.raw_cfs_data
+        )
+        has_supplier_locations = any(
+            "location" in cf.get("supplier", {}) for cf in self.raw_cfs_data
+        )
         if has_consumer_locations and not has_supplier_locations:
             return "consumer"
         elif has_supplier_locations and not has_consumer_locations:
@@ -767,14 +777,20 @@ class EdgeLCIA:
                     if len(self.parameters) > 0:
                         scenario_name = list(self.parameters.keys())[0]
 
-            param_set = self.parameters.get(scenario_name, {}) if scenario_name else self.parameters
+            param_set = (
+                self.parameters.get(scenario_name, {})
+                if scenario_name
+                else self.parameters
+            )
 
             for cf in self.cfs_mapping:
                 if isinstance(cf["value"], str):
                     resolved_params = {}
                     for k, v in param_set.items():
                         if isinstance(v, dict):
-                            resolved_params[k] = v.get(str(scenario_idx), list(v.values())[-1])
+                            resolved_params[k] = v.get(
+                                str(scenario_idx), list(v.values())[-1]
+                            )
                         else:
                             resolved_params[k] = v
 
@@ -849,14 +865,14 @@ class EdgeLCIA:
                     cf["consumer"]["location"]: cf["consumer"]["weight"]
                     for cf in self.cfs_mapping
                     if cf["consumer"].get("location")
-                       and cf["consumer"].get("weight") is not None
+                    and cf["consumer"].get("weight") is not None
                 }
             else:
                 self.weights = {
                     cf["supplier"]["location"]: cf["supplier"]["weight"]
                     for cf in self.cfs_mapping
                     if cf["supplier"].get("location")
-                       and cf["supplier"].get("weight") is not None
+                    and cf["supplier"].get("weight") is not None
                 }
         self.logger.info(f"Number of weighted locations: {len(self.weights)}")
 
@@ -875,8 +891,7 @@ class EdgeLCIA:
         self.logger.info(f"Required supplier fields: {self.required_supplier_fields}")
 
         cf_operators = {
-            cf["supplier"].get("operator", "equals")
-            for cf in self.raw_cfs_data
+            cf["supplier"].get("operator", "equals") for cf in self.raw_cfs_data
         }
 
         candidate_supplier_keys = set()
@@ -890,13 +905,12 @@ class EdgeLCIA:
                 key = make_hashable(filtered_supplier)
                 if key:
                     candidate_supplier_keys.add(key)
-        self.logger.info(f"Number of candidate supplier keys: {len(candidate_supplier_keys)}")
+        self.logger.info(
+            f"Number of candidate supplier keys: {len(candidate_supplier_keys)}"
+        )
 
         def equality_supplier_signature(sup_info: dict) -> tuple:
-            filtered = {
-                k: sup_info.get(k)
-                for k in self.required_supplier_fields
-            }
+            filtered = {k: sup_info.get(k) for k in self.required_supplier_fields}
 
             # Normalize classifications
             if "classifications" in self.required_supplier_fields:
@@ -911,7 +925,9 @@ class EdgeLCIA:
                 elif isinstance(classifications, list):  # legacy list of tuples
                     filtered["classifications"] = tuple(classifications)
                 else:
-                    self.logger.warning(f"Unexpected classifications format: {classifications}")
+                    self.logger.warning(
+                        f"Unexpected classifications format: {classifications}"
+                    )
                     filtered["classifications"] = ()
 
             return make_hashable(filtered)
@@ -931,18 +947,26 @@ class EdgeLCIA:
                 if (supplier_idx, consumer_idx) in processed_flows:
                     continue
 
-                consumer_loc = dict(self.reversed_consumer_lookup[consumer_idx]).get("location")
+                consumer_loc = dict(self.reversed_consumer_lookup[consumer_idx]).get(
+                    "location"
+                )
                 if not consumer_loc:
-                    flow_info = self.position_to_technosphere_flows_lookup.get(consumer_idx, {})
+                    flow_info = self.position_to_technosphere_flows_lookup.get(
+                        consumer_idx, {}
+                    )
                     consumer_loc = flow_info.get("location")
 
                 if not consumer_loc:
-                    self.logger.info(f"Missing consumer location for index {consumer_idx}")
+                    self.logger.info(
+                        f"Missing consumer location for index {consumer_idx}"
+                    )
                     continue
 
                 edges_index[consumer_loc].append((supplier_idx, consumer_idx))
 
-            self.logger.info(f"{direction}: {len(edges_index)} unique consumer locations")
+            self.logger.info(
+                f"{direction}: {len(edges_index)} unique consumer locations"
+            )
 
             prefiltered_groups = defaultdict(list)
             remaining_edges = []
@@ -953,12 +977,16 @@ class EdgeLCIA:
 
                 try:
                     subregions = [
-                        g for g in geo.contained(
+                        g
+                        for g in geo.contained(
                             location, biggest_first=False, include_self=False
-                        ) if g in self.weights
+                        )
+                        if g in self.weights
                     ]
                     if len(subregions) == 0:
-                        self.logger.info(f"Skipping location with no subregions: {location}")
+                        self.logger.info(
+                            f"Skipping location with no subregions: {location}"
+                        )
                         continue
                 except KeyError:
                     self.logger.warning(f"Geometry lookup failed for: {location}")
@@ -968,21 +996,27 @@ class EdgeLCIA:
                     location=location,
                     weights_available=tuple(self.weights.keys()),
                 )
-                self.logger.info(f"{location}: {len(candidate_locations)} candidate sublocations")
+                self.logger.info(
+                    f"{location}: {len(candidate_locations)} candidate sublocations"
+                )
 
                 if not candidate_locations:
                     continue
 
                 for supplier_idx, consumer_idx in edges:
                     if (supplier_idx, consumer_idx) in processed_flows:
-                        self.logger.info(f"Skipping already-processed edge: ({supplier_idx}, {consumer_idx})")
+                        self.logger.info(
+                            f"Skipping already-processed edge: ({supplier_idx}, {consumer_idx})"
+                        )
                         continue
 
                     supplier_info = dict(self.reversed_supplier_lookup[supplier_idx])
                     consumer_info = self.complete_consumer_info(consumer_idx)
 
                     if "location" not in consumer_info:
-                        fallback = self.position_to_technosphere_flows_lookup.get(consumer_idx, {})
+                        fallback = self.position_to_technosphere_flows_lookup.get(
+                            consumer_idx, {}
+                        )
                         if fallback and "location" in fallback:
                             consumer_info["location"] = fallback["location"]
 
@@ -994,25 +1028,48 @@ class EdgeLCIA:
                         self.logger.info(f"Compare to: {sig}")
 
                     if sig in candidate_supplier_keys:
-                        self.logger.info(f"Matched supplier signature for edge ({supplier_idx}, {consumer_idx})")
+                        self.logger.info(
+                            f"Matched supplier signature for edge ({supplier_idx}, {consumer_idx})"
+                        )
                         prefiltered_groups[sig].append(
-                            (supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_locations)
+                            (
+                                supplier_idx,
+                                consumer_idx,
+                                supplier_info,
+                                consumer_info,
+                                candidate_locations,
+                            )
                         )
                     else:
                         if any(x in cf_operators for x in ["contains", "startswith"]):
                             self.logger.info(
-                                f"No exact match for edge ({supplier_idx}, {consumer_idx}), adding to fallback")
+                                f"No exact match for edge ({supplier_idx}, {consumer_idx}), adding to fallback"
+                            )
                             remaining_edges.append(
-                                (supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_locations)
+                                (
+                                    supplier_idx,
+                                    consumer_idx,
+                                    supplier_info,
+                                    consumer_info,
+                                    candidate_locations,
+                                )
                             )
                         else:
-                            self.logger.info(f"No match or fallback for edge ({supplier_idx}, {consumer_idx})")
+                            self.logger.info(
+                                f"No match or fallback for edge ({supplier_idx}, {consumer_idx})"
+                            )
 
-            self.logger.info(f"{direction}: {len(prefiltered_groups)} prefiltered groups")
-            self.logger.info(f"{direction}: {len(remaining_edges)} edges for fallback matching")
+            self.logger.info(
+                f"{direction}: {len(prefiltered_groups)} prefiltered groups"
+            )
+            self.logger.info(
+                f"{direction}: {len(remaining_edges)} edges for fallback matching"
+            )
 
             # Pass 1
-            for sig, group_edges in tqdm(prefiltered_groups.items(), desc=f"Processing static groups (pass 1)"):
+            for sig, group_edges in tqdm(
+                prefiltered_groups.items(), desc=f"Processing static groups (pass 1)"
+            ):
                 new_cf, matched_cf_obj = compute_average_cf(
                     candidates=group_edges[0][-1],
                     supplier_info=group_edges[0][2],
@@ -1022,7 +1079,11 @@ class EdgeLCIA:
                 )
                 if new_cf != 0:
                     for (
-                            supplier_idx, consumer_idx, supplier_info, consumer_info, _
+                        supplier_idx,
+                        consumer_idx,
+                        supplier_info,
+                        consumer_info,
+                        _,
                     ) in group_edges:
                         add_cf_entry(
                             cfs_mapping=self.cfs_mapping,
@@ -1036,8 +1097,14 @@ class EdgeLCIA:
 
             # Pass 2
             for (
-                    supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_locations
-            ) in tqdm(remaining_edges, desc=f"Processing remaining static edges (pass 2)"):
+                supplier_idx,
+                consumer_idx,
+                supplier_info,
+                consumer_info,
+                candidate_locations,
+            ) in tqdm(
+                remaining_edges, desc=f"Processing remaining static edges (pass 2)"
+            ):
                 new_cf, matched_cf_obj = compute_average_cf(
                     candidates=candidate_locations,
                     supplier_info=supplier_info,
@@ -1082,10 +1149,12 @@ class EdgeLCIA:
                     cf["supplier"]["location"]: cf["supplier"]["weight"]
                     for cf in self.cfs_mapping
                     if cf["supplier"].get("location")
-                       and cf["supplier"].get("weight") is not None
+                    and cf["supplier"].get("weight") is not None
                 }
 
-        cfs_lookup = preprocess_cfs(self.raw_cfs_data, by=self.detect_cf_grouping_mode())
+        cfs_lookup = preprocess_cfs(
+            self.raw_cfs_data, by=self.detect_cf_grouping_mode()
+        )
 
         # Precompute required supplier fields (excluding non-matching ones).
         self.required_supplier_fields = {
@@ -1322,7 +1391,9 @@ class EdgeLCIA:
                 and cf["consumer"].get("weight") is not None
             }
 
-        cfs_lookup = preprocess_cfs(self.raw_cfs_data, by=self.detect_cf_grouping_mode())
+        cfs_lookup = preprocess_cfs(
+            self.raw_cfs_data, by=self.detect_cf_grouping_mode()
+        )
 
         # Precompute required supplier fields if not already done.
         self.required_supplier_fields = {
@@ -1497,17 +1568,19 @@ class EdgeLCIA:
                     cf["consumer"]["location"]: cf["consumer"]["weight"]
                     for cf in self.cfs_mapping
                     if cf["consumer"].get("location")
-                       and cf["consumer"].get("weight") is not None
+                    and cf["consumer"].get("weight") is not None
                 }
             else:
                 self.weights = {
                     cf["supplier"]["location"]: cf["supplier"]["weight"]
                     for cf in self.cfs_mapping
                     if cf["supplier"].get("location")
-                       and cf["supplier"].get("weight") is not None
+                    and cf["supplier"].get("weight") is not None
                 }
 
-        cfs_lookup = preprocess_cfs(self.raw_cfs_data, by=self.detect_cf_grouping_mode())
+        cfs_lookup = preprocess_cfs(
+            self.raw_cfs_data, by=self.detect_cf_grouping_mode()
+        )
 
         # Precompute required supplier fields (excluding non-matching ones).
         self.required_supplier_fields = {
@@ -1757,7 +1830,9 @@ class EdgeLCIA:
             if not any(k for k in cf["consumer"] if k not in {"matrix", "weight"}):
                 # if not, all are eligible
                 consumer_candidates = list(self.consumer_lookup.values())
-                consumer_candidates = [pos for sublist in consumer_candidates for pos in sublist]
+                consumer_candidates = [
+                    pos for sublist in consumer_candidates for pos in sublist
+                ]
             else:
                 cached_match_with_index.index = consumer_index
                 cached_match_with_index.lookup_mapping = self.consumer_lookup
