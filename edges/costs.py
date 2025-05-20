@@ -3,7 +3,9 @@ Module that implements the base class for country-specific life-cycle
 impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
+
 from .edgelcia import *
+
 
 class CostLCIA(EdgeLCIA):
     """
@@ -81,7 +83,3 @@ class CostLCIA(EdgeLCIA):
 
         final_matrix = coo_matrix((corrected_data, (rows, cols)), shape=A.shape)
         return final_matrix.tocsr()
-
-
-
-

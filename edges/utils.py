@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 _eval_cache = {}
 
+
 def format_method_name(name: str) -> tuple:
     """
     Format the name of the method.
@@ -114,7 +115,9 @@ def format_data(data: dict, weight: str) -> [list, dict]:
     :return: The formatted data for the LCIA method.
     """
 
-    assert all(x in data for x in ("name", "version", "unit", "exchanges")), "Missing required fields in data."
+    assert all(
+        x in data for x in ("name", "version", "unit", "exchanges")
+    ), "Missing required fields in data."
 
     # Extract and attach scenario-specific parameters if present
     scenario_parameters = data.get("parameters", {})
@@ -127,7 +130,9 @@ def format_data(data: dict, weight: str) -> [list, dict]:
 
     check_presence_of_required_fields(data["exchanges"])
 
-    formatted_exchanges = add_population_and_gdp_data(data=data["exchanges"], weight=weight)
+    formatted_exchanges = add_population_and_gdp_data(
+        data=data["exchanges"], weight=weight
+    )
 
     metadata = {k: v for k, v in data.items() if k != "exchanges"}
     if scenario_parameters:
@@ -283,7 +288,11 @@ def preprocess_cfs(cf_list, by="consumer"):
     :param by: One of 'consumer', 'supplier', or 'both'
     :return: defaultdict of location -> list of CFs
     """
-    assert by in {"consumer", "supplier", "both"}, "'by' must be 'consumer', 'supplier', or 'both'"
+    assert by in {
+        "consumer",
+        "supplier",
+        "both",
+    }, "'by' must be 'consumer', 'supplier', or 'both'"
 
     lookup = defaultdict(list)
 
@@ -306,6 +315,7 @@ def preprocess_cfs(cf_list, by="consumer"):
                 lookup[supplier_loc].append(cf)
 
     return lookup
+
 
 def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> list:
     """
@@ -440,7 +450,10 @@ def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
         logger.error(f"Error evaluating '{expr}': {e}")
         raise ValueError(f"Invalid expression '{expr}': {e}")
 
-def safe_eval_cached(expr: str, parameters: dict, scenario_idx: str, SAFE_GLOBALS: dict):
+
+def safe_eval_cached(
+    expr: str, parameters: dict, scenario_idx: str, SAFE_GLOBALS: dict
+):
     # Convert parameters into a hashable string key
     key = (
         expr,
@@ -452,7 +465,9 @@ def safe_eval_cached(expr: str, parameters: dict, scenario_idx: str, SAFE_GLOBAL
     if cache_key in _eval_cache:
         return _eval_cache[cache_key]
 
-    result = safe_eval(expr, parameters, SAFE_GLOBALS=SAFE_GLOBALS, scenario_idx=scenario_idx)
+    result = safe_eval(
+        expr, parameters, SAFE_GLOBALS=SAFE_GLOBALS, scenario_idx=scenario_idx
+    )
     _eval_cache[cache_key] = result
     return result
 
@@ -469,4 +484,3 @@ def validate_parameter_lengths(parameters):
         raise ValueError(f"Inconsistent lengths in parameter arrays: {lengths}")
 
     return lengths.pop()
-
