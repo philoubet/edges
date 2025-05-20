@@ -20,21 +20,22 @@ from prettytable import PrettyTable
 import bw2data
 from tqdm import tqdm
 from textwrap import fill
-from functools import cache
 from scipy import stats
 from functools import lru_cache
 
 from .utils import (
     format_data,
-    initialize_lcia_matrix,
     get_flow_matrix_positions,
-    preprocess_cfs,
     safe_eval,
     safe_eval_cached,
     validate_parameter_lengths,
-    get_str
+    get_str, make_hashable, compute_average_cf
 )
+from .matrix_builders import initialize_lcia_matrix, build_technosphere_edges_matrix
+from .flow_matching import preprocess_cfs, matches_classifications, normalize_cf_entries, \
+    build_cf_index, cached_match_with_index, preprocess_flows, build_index
 from .georesolver import GeoResolver
+from .uncertainty import sample_cf_distribution
 from .filesystem_constants import DATA_DIR
 
 # delete the logs
@@ -51,407 +52,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-def make_hashable(flow_to_match):
-    def convert(value):
-        if isinstance(value, list):
-            return tuple(value)
-        elif isinstance(value, dict):
-            return tuple(sorted((k, convert(v)) for k, v in value.items()))
-        return value
-
-    return tuple(sorted((k, convert(v)) for k, v in flow_to_match.items()))
-
-
-@cache
-def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
-    flow_to_match = dict(flow_to_match_hashable)
-    required_fields = set(required_fields_tuple)
-    return match_with_index(
-        flow_to_match,
-        cached_match_with_index.index,
-        cached_match_with_index.lookup_mapping,
-        required_fields,
-        cached_match_with_index.reversed_lookup,
-    )
-
-
-@cache
-def get_shares(candidates: tuple):
-    """
-    Get the shares of each candidate location based on weights.
-    """
-    if not candidates:
-        return [], np.array([])
-
-    cand_locs, weights = zip(*candidates)
-    weight_array = np.array(weights, dtype=float)
-    total_weight = weight_array.sum()
-    if total_weight == 0:
-        return list(cand_locs), np.zeros_like(weight_array)
-    return list(cand_locs), weight_array / total_weight
-
-
-def compute_average_cf(
-    candidate_suppliers: list,
-    candidate_consumers: list,
-    supplier_info: dict,
-    consumer_info: dict,
-    weight: dict,
-    cf_index: dict,
-    required_supplier_fields: set = None,
-    required_consumer_fields: set = None,
-    logger=None
-) -> tuple[str | float, Optional[dict]]:
-    """
-    Compute the weighted average characterization factor (CF) for a given supplier-consumer pair.
-    Supports disaggregated regional matching on both supplier and consumer sides.
-    """
-    if logger is None:
-        logger = logging.getLogger(__name__)
-
-    if not candidate_suppliers and not candidate_consumers:
-        return 0, None
-
-    valid_candidates = [
-        (loc, weight[loc]) for loc in set(candidate_suppliers + candidate_consumers)
-        if loc in weight and weight[loc] > 0
-    ]
-    if not valid_candidates:
-        return 0, None
-
-    cand_locs, shares = get_shares(tuple(valid_candidates))
-    if not shares.any():
-        return 0, None
-
-    filtered_supplier = {
-        k: supplier_info[k] for k in required_supplier_fields if k in supplier_info
-    }
-    filtered_consumer = {
-        k: consumer_info[k] for k in required_consumer_fields if k in consumer_info
-    }
-
-    if "classifications" in filtered_supplier:
-        c = filtered_supplier["classifications"]
-        if isinstance(c, dict):
-            filtered_supplier["classifications"] = tuple(
-                (scheme, tuple(sorted(vals))) for scheme, vals in c.items()
-            )
-        elif isinstance(c, (list, tuple)):
-            filtered_supplier["classifications"] = tuple(sorted(c))
-
-    supplier_sig = make_hashable(filtered_supplier)
-    matched_cfs = []
-
-    for loc, share in zip(cand_locs, shares):
-        loc_cfs_dict = cf_index.get(loc, {})
-        loc_cfs = loc_cfs_dict.get(supplier_sig, [])
-
-        matched_cfs.extend(
-            process_cf_list(
-                loc_cfs,
-                filtered_supplier,
-                filtered_consumer,
-                supplier_info,
-                consumer_info,
-                candidate_suppliers,
-                candidate_consumers,
-                share,
-            )
-        )
-
-    if not matched_cfs:
-        return 0, None
-
-    expressions = [f"({share:.6f} * ({cf['value']}))" for cf, share in matched_cfs]
-    expr = " + ".join(expressions)
-
-    return (expr, matched_cfs[0][0]) if len(matched_cfs) == 1 else (expr, None)
-
-def process_cf_list(
-    cf_list: list,
-    filtered_supplier: dict,
-    filtered_consumer: dict,
-    supplier_info: dict,
-    consumer_info: dict,
-    candidate_suppliers: list,
-    candidate_consumers: list,
-    share: float,
-) -> list:
-    results = []
-    best_score = -1
-    best_cf = None
-
-    for cf in cf_list:
-        supplier_cf = cf.get("supplier", {})
-        consumer_cf = cf.get("consumer", {})
-        operator = supplier_cf.get("operator", "equals")
-
-        supplier_match = True
-        for k in filtered_supplier:
-            if k == "classifications":
-                continue
-            val = filtered_supplier.get(k, "")
-            expected = supplier_cf.get(k, "")
-
-            if k == "location" and candidate_suppliers:
-                match = any(match_operator(loc_val, expected, operator) for loc_val in candidate_suppliers)
-            else:
-                match = match_operator(val, expected, operator)
-
-            if not match:
-                supplier_match = False
-                break
-
-        if not supplier_match:
-            continue
-
-        consumer_match = True
-        for k in filtered_consumer:
-            if k == "classifications":
-                continue
-            val = filtered_consumer.get(k, "")
-            expected = consumer_cf.get(k, "")
-
-            if k == "location" and candidate_consumers:
-                match = any(match_operator(loc_val, expected, operator) for loc_val in candidate_consumers)
-            else:
-                match = match_operator(val, expected, operator)
-
-            if not match:
-                consumer_match = False
-                break
-
-        if not consumer_match:
-            continue
-
-        match_score = 0
-        cf_class = supplier_cf.get("classifications")
-        ds_class = supplier_info.get("classifications")
-        if cf_class and ds_class and matches_classifications(cf_class, ds_class):
-            match_score += 1
-
-        cf_cons_class = consumer_cf.get("classifications")
-        ds_cons_class = consumer_info.get("classifications")
-        if cf_cons_class and ds_cons_class and matches_classifications(cf_cons_class, ds_cons_class):
-            match_score += 1
-
-        if match_score > best_score:
-            best_score = match_score
-            best_cf = cf
-
-    if best_cf:
-        results.append((best_cf, share))
-
-    return results
-
-
-def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
-    """
-    Preprocess flows into a lookup dictionary.
-    Each flow is keyed by a tuple of selected metadata fields.
-    If no fields are present, falls back to using its position as key.
-
-    :param flows_list: List of flows (dicts with metadata + 'position')
-    :param mandatory_fields: Fields that must be included in the lookup key.
-    :return: A dictionary mapping keys -> list of flow positions
-    """
-    lookup = {}
-
-    for flow in flows_list:
-        def make_value_hashable(v):
-            if isinstance(v, list):
-                return tuple(v)
-            if isinstance(v, dict):
-                return tuple(sorted((k, make_value_hashable(val)) for k, val in v.items()))
-            return v
-
-        # Build a hashable key from mandatory fields (if any are present)
-        key_elements = [
-            (k, make_value_hashable(flow[k]))
-            for k in mandatory_fields
-            if k in flow and flow[k] is not None
-        ]
-
-        if key_elements:
-            key = tuple(sorted(key_elements))
-        else:
-            # Fallback: use the position as a unique key
-            key = (("position", flow["position"]),)
-
-        lookup.setdefault(key, []).append(flow["position"])
-
-    return lookup
-
-
-def build_index(lookup: dict, required_fields: set) -> dict:
-    """
-    Build an inverted index from the lookup dictionary.
-    The index maps each required field to a dict, whose keys are the values
-    from the lookup entries and whose values are lists of tuples:
-    (lookup_key, positions), where lookup_key is the original key from lookup.
-
-    :param lookup: The original lookup dictionary.
-    :param required_fields: The fields to index.
-    :return: A dictionary index.
-    """
-    index = {field: {} for field in required_fields}
-    for key, positions in lookup.items():
-        # Each key is assumed to be an iterable of (field, value) pairs.
-        for k, v in key:
-            if k in required_fields:
-                index[k].setdefault(v, []).append((key, positions))
-    return index
-
-
-def matches_classifications(cf_classifications, dataset_classifications):
-    """Match CF classification codes to dataset classifications."""
-    if isinstance(cf_classifications, dict):
-        cf_classifications = [
-            (scheme, code)
-            for scheme, codes in cf_classifications.items()
-            for code in codes
-        ]
-    elif isinstance(cf_classifications, (list, tuple)):
-        if all(isinstance(x, tuple) and isinstance(x[1], (list, tuple)) for x in cf_classifications):
-            # Convert from tuple of tuples like (('cpc', ('01.1',)),) -> [('cpc', '01.1')]
-            cf_classifications = [
-                (scheme, code)
-                for scheme, codes in cf_classifications
-                for code in codes
-            ]
-
-    for scheme, value in dataset_classifications:
-        code = value.split(":")[0].strip()
-        if any(
-            code.startswith(cf_code) and scheme == cf_scheme
-            for cf_scheme, cf_code in cf_classifications
-        ):
-            return True
-    return False
-
-
-
-@cache
-def match_operator(value: str, target: str, operator: str) -> bool:
-    """
-    Implements matching for three operator types:
-      - "equals": value == target
-      - "startswith": value starts with target (if both are strings)
-      - "contains": target is contained in value (if both are strings)
-
-    :param value: The flow's value.
-    :param target: The lookup's candidate value.
-    :param operator: The operator type ("equals", "startswith", "contains").
-    :return: True if the condition is met, False otherwise.
-    """
-    if operator == "equals":
-        return value == target
-    elif operator == "startswith":
-        return value.startswith(target)
-    elif operator == "contains":
-        return target in value
-    return False
-
-
-def match_with_index(
-    flow_to_match: dict,
-    index: dict,
-    lookup_mapping: dict,
-    required_fields: set,
-    reversed_lookup: dict,
-) -> list:
-    """
-    Match a flow against the lookup using the inverted index.
-    Supports "equals", "startswith", and "contains" operators.
-
-    :param flow_to_match: The flow to match.
-    :param index: The inverted index produced by build_index().
-    :param lookup_mapping: The original lookup dictionary mapping keys to positions.
-    :param required_fields: The required fields for matching.
-    :return: A list of matching positions.
-    """
-    operator_value = flow_to_match.get("operator", "equals")
-    candidate_keys = None
-
-    if not required_fields:
-        # Match all flows if no fields to match
-        return [pos for positions in lookup_mapping.values() for pos in positions]
-
-    for field in required_fields:
-        match_target = flow_to_match.get(field)
-        field_index = index.get(field, {})
-        field_candidates = set()
-
-        if operator_value == "equals":
-            # Fast direct lookup.
-            for candidate in field_index.get(match_target, []):
-                candidate_key, _ = candidate
-                field_candidates.add(candidate_key)
-        else:
-            # For "startswith" or "contains", we iterate over all candidate values.
-            for candidate_value, candidate_list in field_index.items():
-                if match_operator(
-                    value=candidate_value, target=match_target, operator=operator_value
-                ):
-                    for candidate in candidate_list:
-                        candidate_key, _ = candidate
-                        field_candidates.add(candidate_key)
-
-        # Initialize or intersect candidate sets.
-        if candidate_keys is None:
-            candidate_keys = field_candidates
-        else:
-            candidate_keys &= field_candidates
-
-        # Early exit if no candidates remain.
-        if not candidate_keys:
-            return []
-
-    # Gather positions from the original lookup mapping for all candidate keys.
-    matches = []
-    for key in candidate_keys:
-        matches.extend(lookup_mapping.get(key, []))
-
-    if "classifications" in flow_to_match:
-        cf_classifications_by_scheme = flow_to_match["classifications"]
-
-        if isinstance(cf_classifications_by_scheme, tuple):
-            cf_classifications_by_scheme = dict(cf_classifications_by_scheme)
-
-        classified_matches = []
-
-        for pos in matches:
-            flow = reversed_lookup.get(pos)
-            flow = dict(flow)
-            if not flow:
-                continue
-            try:
-                dataset_classifications = flow.get("classifications", [])
-            except:
-                print(flow)
-                raise
-
-            if dataset_classifications:
-                for scheme, cf_codes in cf_classifications_by_scheme.items():
-                    relevant_codes = [
-                        code.split(":")[0].strip()
-                        for s, code in dataset_classifications
-                        if s.lower() == scheme.lower()
-                    ]
-                    if any(
-                        code.startswith(prefix)
-                        for prefix in cf_codes
-                        for code in relevant_codes
-                    ):
-                        classified_matches.append(pos)
-                        break
-
-        if classified_matches:
-            return classified_matches
-
-    return matches
 
 
 def add_cf_entry(
@@ -477,95 +77,6 @@ def add_cf_entry(
 
     cfs_mapping.append(entry)
 
-
-def nested_dict():
-    return defaultdict(dict)
-
-
-def normalize_cf_entries(cf_list: list[dict]) -> list[dict]:
-    for cf in cf_list:
-        supplier = cf.get("supplier", {})
-        classifications = supplier.get("classifications")
-        if isinstance(classifications, dict):
-            # Normalize from dict
-            supplier["classifications"] = tuple(
-                (scheme, val) for scheme, values in sorted(classifications.items()) for val in values
-            )
-        elif isinstance(classifications, list):
-            # Already list of (scheme, code), just ensure it's a tuple
-            supplier["classifications"] = tuple(classifications)
-        elif isinstance(classifications, tuple):
-            # Handle legacy format like: (('cpc', ('01.1',)),)
-            new_classifications = []
-            for scheme, maybe_codes in classifications:
-                if isinstance(maybe_codes, (tuple, list)):
-                    for code in maybe_codes:
-                        new_classifications.append((scheme, code))
-                else:
-                    new_classifications.append((scheme, maybe_codes))
-            supplier["classifications"] = tuple(new_classifications)
-    return cf_list
-
-
-def count_matching_fields(supplier_info, consumer_info, cf, required_supplier_fields):
-    score = 0
-    cf_supplier = cf.get("supplier", {})
-    cf_consumer = cf.get("consumer", {})
-
-    for key in required_supplier_fields:
-        val1 = supplier_info.get(key)
-        val2 = cf_supplier.get(key)
-
-        if key == "classifications":
-            if matches_classifications(val2 or [], val1 or []):
-                score += 1
-        elif val1 == val2:
-            score += 1
-
-    # Optional: add consumer-specific fields
-    if "classifications" in cf_consumer and "classifications" in consumer_info:
-        if matches_classifications(cf_consumer["classifications"], consumer_info["classifications"]):
-            score += 1
-
-    return score
-
-
-def hashable_dict(d):
-    """Wrapper to hash a dictionary using make_hashable."""
-    return make_hashable(d)
-
-def build_cf_index(
-    raw_cfs: list[dict],
-    required_supplier_fields: set
-) -> dict[str, dict[tuple, list[dict]]]:
-    """
-    Build a nested CF index:
-        cf_index[consumer_location][supplier_signature] → list of CFs
-    """
-    index = defaultdict(lambda: defaultdict(list))
-
-    for cf in raw_cfs:
-        consumer_loc = cf.get("consumer", {}).get("location")
-        if not consumer_loc:
-            continue
-
-        supplier = cf.get("supplier", {})
-        # Create supplier signature
-        sig = tuple(sorted((k, supplier[k]) for k in required_supplier_fields if k in supplier))
-
-        index[consumer_loc][sig].append(cf)
-
-    return index
-
-def is_aggregate_location(self, loc: str) -> bool:
-    try:
-        subregions = [
-            g for g in self.geo.resolve(loc, containing=True)
-            if g in self.weights
-        ]
-        return len(subregions) > 0
-    except KeyError:
-        return False
 
 class EdgeLCIA:
     """
@@ -686,7 +197,9 @@ class EdgeLCIA:
         if all(
             cf["supplier"].get("matrix") == "technosphere" for cf in self.raw_cfs_data
         ):
-            self.technosphere_flow_matrix = self.build_technosphere_edges_matrix()
+            self.technosphere_flow_matrix = build_technosphere_edges_matrix(
+                self.lca.technosphere_matrix, self.lca.supply_array
+            )
             self.technosphere_edges = set(
                 list(zip(*self.technosphere_flow_matrix.nonzero()))
             )
@@ -717,27 +230,6 @@ class EdgeLCIA:
             for i in self.technosphere_flows
         }
 
-    def build_technosphere_edges_matrix(self):
-        """
-        Generate a matrix with the technosphere flows.
-        """
-
-        # Convert CSR to COO format for easier manipulation
-        coo = self.lca.technosphere_matrix.tocoo()
-
-        # Extract negative values
-        rows, cols, data = coo.row, coo.col, coo.data
-        negative_data = -data * (data < 0)  # Keep only negatives and make them positive
-
-        # Scale columns by supply_array
-        scaled_data = negative_data * self.lca.supply_array[cols]
-
-        # Create the flow matrix in sparse format
-        flow_matrix_sparse = coo_matrix(
-            (scaled_data, (rows, cols)), shape=self.lca.technosphere_matrix.shape
-        )
-
-        return flow_matrix_sparse.tocsr()
 
     def load_raw_lcia_data(self):
         if self.filepath is None:
@@ -835,93 +327,6 @@ class EdgeLCIA:
         else:
             return "both"
 
-    def sample_cf_distribution(self, cf: dict, n: int) -> np.ndarray:
-        """
-        Generate n random CF values from the distribution info in the 'uncertainty' key.
-        Falls back to a constant value if no uncertainty. If 'negative' == 1, samples are negated.
-        """
-        if not self.use_distributions or cf.get("uncertainty") is None:
-            # If value is a string (expression), evaluate once
-            value = cf["value"]
-            if isinstance(value, str):
-                value = safe_eval(
-                    expr=value,
-                    parameters=self.parameters,
-                    scenario_idx=0,
-                    SAFE_GLOBALS=self.SAFE_GLOBALS,
-                )
-            return np.full(n, value, dtype=float)
-
-        unc = cf["uncertainty"]
-        dist_name = unc["distribution"]
-        params = unc["parameters"]
-        negative = unc.get("negative", 0)
-
-        if dist_name == "discrete_empirical":
-            values = np.array(params["values"])
-            weights = np.array(params["weights"])
-            if weights.sum() != 0:
-                weights = weights / weights.sum()
-            samples = self.random_state.choice(values, size=n, p=weights)
-
-        elif dist_name == "uniform":
-            samples = self.random_state.uniform(
-                params["minimum"], params["maximum"], size=n
-            )
-
-        elif dist_name == "triang":
-            left = params["minimum"]
-            mode = params["loc"]
-            right = params["maximum"]
-            samples = self.random_state.triangular(left, mode, right, size=n)
-
-        elif dist_name == "normal":
-            samples = self.random_state.normal(
-                loc=params["loc"], scale=params["scale"], size=n
-            )
-            samples = np.clip(samples, params["minimum"], params["maximum"])
-
-        elif dist_name == "lognorm":
-            s = params["shape_a"]
-            loc = params["loc"]
-            scale = params["scale"]
-            samples = stats.lognorm.rvs(
-                s=s, loc=loc, scale=scale, size=n, random_state=self.random_state
-            )
-            samples = np.clip(samples, params["minimum"], params["maximum"])
-
-        elif dist_name == "beta":
-            a = params["shape_a"]
-            b = params["shape_b"]
-            x = self.random_state.beta(a, b, size=n)
-            samples = params["loc"] + x * params["scale"]
-            samples = np.clip(samples, params["minimum"], params["maximum"])
-
-        elif dist_name == "gamma":
-            samples = (
-                self.random_state.gamma(params["shape_a"], params["scale"], size=n)
-                + params["loc"]
-            )
-            samples = np.clip(samples, params["minimum"], params["maximum"])
-
-        elif dist_name == "weibull_min":
-            c = params["shape_a"]
-            loc = params["loc"]
-            scale = params["scale"]
-            samples = stats.weibull_min.rvs(
-                c=c, loc=loc, scale=scale, size=n, random_state=self.random_state
-            )
-            samples = np.clip(samples, params["minimum"], params["maximum"])
-
-        else:
-            samples = np.full(n, cf["value"], dtype=float)
-
-        return -samples if negative else samples
-
-    def resolve_param(self, param, key):
-        if isinstance(param, dict):
-            return param.get(key, list(param.values())[-1])  # fallback to last value
-        return param
 
     def resolve_parameters_for_scenario(self, scenario_idx: int, scenario_name: Optional[str] = None) -> dict:
         scenario_name = scenario_name or self.scenario
@@ -943,7 +348,14 @@ class EdgeLCIA:
             data = []
 
             for cf in self.cfs_mapping:
-                samples = self.sample_cf_distribution(cf, n=self.iterations)
+                samples = sample_cf_distribution(
+                    cf=cf,
+                    n=self.iterations,
+                    parameters=self.parameters,
+                    random_state=self.random_state,
+                    use_distributions=self.use_distributions,
+                    SAFE_GLOBALS=self.SAFE_GLOBALS,
+                )
                 for i, j in cf["positions"]:
                     for k in range(self.iterations):
                         coords_i.append(i)

@@ -3,22 +3,20 @@ Utility functions for the LCIA methods implementation.
 """
 
 import os
-from collections import defaultdict
 import logging
+from typing import Optional
 
 import yaml
-from bw2calc import LCA
-from scipy.sparse import lil_matrix
 import numpy as np
 
-from functools import reduce
+from functools import reduce, cache
 import operator
-from functools import lru_cache
 import hashlib
 import json
 
 from bw2data import __version__ as bw2data_version
 
+from .flow_matching import process_cf_list
 
 if isinstance(bw2data_version, str):
     bw2data_version = tuple(map(int, bw2data_version.split(".")))
@@ -172,19 +170,6 @@ def add_population_and_gdp_data(data: list, weight: str) -> list:
     return data
 
 
-def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
-    """
-    Initialize the LCIA matrix. It is a sparse matrix with the
-    dimensions of the `inventory` matrix of the LCA object.
-    :param lca: The LCA object.
-    :param matrix_type: The type of the matrix.
-    :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
-    """
-    if matrix_type == "biosphere":
-        return lil_matrix(lca.inventory.shape)
-    return lil_matrix(lca.technosphere_matrix.shape)
-
-
 def normalize_flow(flow):
     """
     Return a dictionary view of a flow object.
@@ -278,43 +263,6 @@ def get_flow_matrix_positions(mapping: dict) -> list:
             }
         )
     return result
-
-
-def preprocess_cfs(cf_list, by="consumer"):
-    """
-    Group CFs by location from either 'consumer', 'supplier', or both.
-
-    :param cf_list: List of characterization factors (CFs)
-    :param by: One of 'consumer', 'supplier', or 'both'
-    :return: defaultdict of location -> list of CFs
-    """
-    assert by in {
-        "consumer",
-        "supplier",
-        "both",
-    }, "'by' must be 'consumer', 'supplier', or 'both'"
-
-    lookup = defaultdict(list)
-
-    for cf in cf_list:
-        consumer_loc = cf.get("consumer", {}).get("location")
-        supplier_loc = cf.get("supplier", {}).get("location")
-
-        if by == "consumer":
-            if consumer_loc:
-                lookup[consumer_loc].append(cf)
-
-        elif by == "supplier":
-            if supplier_loc:
-                lookup[supplier_loc].append(cf)
-
-        elif by == "both":
-            if consumer_loc:
-                lookup[consumer_loc].append(cf)
-            elif supplier_loc:
-                lookup[supplier_loc].append(cf)
-
-    return lookup
 
 
 def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> list:
@@ -484,3 +432,109 @@ def validate_parameter_lengths(parameters):
         raise ValueError(f"Inconsistent lengths in parameter arrays: {lengths}")
 
     return lengths.pop()
+
+
+def make_hashable(flow_to_match):
+    def convert(value):
+        if isinstance(value, list):
+            return tuple(value)
+        elif isinstance(value, dict):
+            return tuple(sorted((k, convert(v)) for k, v in value.items()))
+        return value
+
+    return tuple(sorted((k, convert(v)) for k, v in flow_to_match.items()))
+
+
+@cache
+def get_shares(candidates: tuple):
+    """
+    Get the shares of each candidate location based on weights.
+    """
+    if not candidates:
+        return [], np.array([])
+
+    cand_locs, weights = zip(*candidates)
+    weight_array = np.array(weights, dtype=float)
+    total_weight = weight_array.sum()
+    if total_weight == 0:
+        return list(cand_locs), np.zeros_like(weight_array)
+    return list(cand_locs), weight_array / total_weight
+
+
+def compute_average_cf(
+    candidate_suppliers: list,
+    candidate_consumers: list,
+    supplier_info: dict,
+    consumer_info: dict,
+    weight: dict,
+    cf_index: dict,
+    required_supplier_fields: set = None,
+    required_consumer_fields: set = None,
+    logger=None
+) -> tuple[str | float, Optional[dict]]:
+    """
+    Compute the weighted average characterization factor (CF) for a given supplier-consumer pair.
+    Supports disaggregated regional matching on both supplier and consumer sides.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    if not candidate_suppliers and not candidate_consumers:
+        return 0, None
+
+    valid_candidates = [
+        (loc, weight[loc]) for loc in set(candidate_suppliers + candidate_consumers)
+        if loc in weight and weight[loc] > 0
+    ]
+    if not valid_candidates:
+        return 0, None
+
+    cand_locs, shares = get_shares(tuple(valid_candidates))
+    if not shares.any():
+        return 0, None
+
+    filtered_supplier = {
+        k: supplier_info[k] for k in required_supplier_fields if k in supplier_info
+    }
+    filtered_consumer = {
+        k: consumer_info[k] for k in required_consumer_fields if k in consumer_info
+    }
+
+    if "classifications" in filtered_supplier:
+        c = filtered_supplier["classifications"]
+        if isinstance(c, dict):
+            filtered_supplier["classifications"] = tuple(
+                (scheme, tuple(sorted(vals))) for scheme, vals in c.items()
+            )
+        elif isinstance(c, (list, tuple)):
+            filtered_supplier["classifications"] = tuple(sorted(c))
+
+    supplier_sig = make_hashable(filtered_supplier)
+    matched_cfs = []
+
+    for loc, share in zip(cand_locs, shares):
+        loc_cfs_dict = cf_index.get(loc, {})
+        loc_cfs = loc_cfs_dict.get(supplier_sig, [])
+
+        matched_cfs.extend(
+            process_cf_list(
+                loc_cfs,
+                filtered_supplier,
+                filtered_consumer,
+                supplier_info,
+                consumer_info,
+                candidate_suppliers,
+                candidate_consumers,
+                share,
+            )
+        )
+
+    if not matched_cfs:
+        return 0, None
+
+    expressions = [f"({share:.6f} * ({cf['value']}))" for cf, share in matched_cfs]
+    expr = " + ".join(expressions)
+
+    return (expr, matched_cfs[0][0]) if len(matched_cfs) == 1 else (expr, None)
+
+
