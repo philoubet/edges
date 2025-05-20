@@ -3,7 +3,7 @@ Module that implements the base class for country-specific life-cycle
 impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
-import hashlib
+
 import math
 from collections import defaultdict
 import logging
@@ -15,7 +15,6 @@ import numpy as np
 import sparse
 
 from scipy.sparse import coo_matrix
-from constructive_geometries import Geomatcher
 import pandas as pd
 from prettytable import PrettyTable
 import bw2data
