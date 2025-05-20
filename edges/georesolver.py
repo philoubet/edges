@@ -6,7 +6,6 @@ from constructive_geometries import Geomatcher
 from .utils import load_missing_geographies, get_str
 
 
-
 class GeoResolver:
     def __init__(self, weights: dict):
         self.weights = {get_str(k): v for k, v in weights.items()}
@@ -17,8 +16,7 @@ class GeoResolver:
         if not self.logger.handlers:
             fh = logging.FileHandler("georesolver.log")
             formatter = logging.Formatter(
-                "%(asctime)s %(name)s %(levelname)s: %(message)s",
-                datefmt="%H:%M:%S"
+                "%(asctime)s %(name)s %(levelname)s: %(message)s", datefmt="%H:%M:%S"
             )
             fh.setFormatter(formatter)
             fh.setLevel(logging.DEBUG)
@@ -30,11 +28,11 @@ class GeoResolver:
         self.missing_geographies = load_missing_geographies()
 
     def find_locations(
-            self,
-            location: str,
-            weights_available: tuple,
-            containing: bool = True,
-            exceptions: tuple | None = None,
+        self,
+        location: str,
+        weights_available: tuple,
+        containing: bool = True,
+        exceptions: tuple | None = None,
     ) -> list[str]:
         """
         Find the locations containing or contained by a given location.
@@ -55,17 +53,17 @@ class GeoResolver:
             raw_candidates = []
             try:
                 for e in getattr(self.geo, method)(
-                        location,
-                        biggest_first=False,
-                        exclusive=containing,
-                        include_self=False,
+                    location,
+                    biggest_first=False,
+                    exclusive=containing,
+                    include_self=False,
                 ):
                     e_str = get_str(e)
                     raw_candidates.append(e_str)
                     if (
-                            e_str in weights_available
-                            and e_str != location
-                            and (not exceptions or e_str not in exceptions)
+                        e_str in weights_available
+                        and e_str != location
+                        and (not exceptions or e_str not in exceptions)
                     ):
                         results.append(e_str)
                         if not containing:
@@ -73,11 +71,12 @@ class GeoResolver:
             except KeyError:
                 self.logger.info(f"Region: {location}. No geometry found.")
 
-
         return results
 
     @lru_cache(maxsize=2048)
-    def _cached_lookup(self, location: str, containing: bool, exceptions: tuple | None = None) -> list:
+    def _cached_lookup(
+        self, location: str, containing: bool, exceptions: tuple | None = None
+    ) -> list:
         return self.find_locations(
             location=location,
             weights_available=tuple(self.weights.keys()),
@@ -85,7 +84,9 @@ class GeoResolver:
             exceptions=exceptions,
         )
 
-    def resolve(self, location: str, containing=True, exceptions: list[str] | None = None) -> list:
+    def resolve(
+        self, location: str, containing=True, exceptions: list[str] | None = None
+    ) -> list:
         return self._cached_lookup(
             location=get_str(location),
             containing=containing,
@@ -95,8 +96,15 @@ class GeoResolver:
     def resolve_global(self, exceptions: list[str] | None = None) -> list:
         return self.resolve("GLO", containing=True, exceptions=exceptions)
 
-    def batch(self, locations: list[str], containing=True, exceptions_map: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+    def batch(
+        self,
+        locations: list[str],
+        containing=True,
+        exceptions_map: dict[str, list[str]] | None = None,
+    ) -> dict[str, list[str]]:
         return {
-            loc: self.resolve(loc, containing, exceptions_map.get(loc) if exceptions_map else None)
+            loc: self.resolve(
+                loc, containing, exceptions_map.get(loc) if exceptions_map else None
+            )
             for loc in locations
         }
