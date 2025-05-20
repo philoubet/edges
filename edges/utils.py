@@ -110,6 +110,7 @@ def format_data(data: dict, weight: str) -> [list, dict]:
     """
     Format the data for the LCIA method.
     :param data: The data for the LCIA method.
+    :param weight: The type of weight to include.
     :return: The formatted data for the LCIA method.
     """
 
@@ -157,11 +158,11 @@ def add_population_and_gdp_data(data: list, weight: str) -> list:
 
     # add to the data dictionary
     for cf in data:
-        for category in ["supplier", "consumer"]:
+        for category in ["consumer", "supplier"]:
             if "location" in cf[category]:
-                if "weight" not in cf[category]:
+                if "weight" not in cf:
                     k = cf[category]["location"]
-                    cf[category]["weight"] = weighting_data.get(k, 0)
+                    cf["weight"] = weighting_data.get(k, 0)
 
     return data
 
@@ -411,8 +412,10 @@ def load_missing_geographies():
         return yaml.safe_load(f)
 
 
-def get_str(x):
-    return x if isinstance(x, str) else x[-1]
+def get_str(loc):
+    if isinstance(loc, tuple):
+        return loc[1]
+    return str(loc)
 
 
 def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
