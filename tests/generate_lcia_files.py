@@ -63,7 +63,6 @@ technosphere_cases = {
             "matrix": "technosphere",
         },
     },
-
 }
 
 # Write technosphere files

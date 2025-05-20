@@ -16,20 +16,23 @@ activity_D = get_activity(("lcia-test-db", "D"))
 activity_E = get_activity(("lcia-test-db", "E"))
 
 
-@pytest.mark.parametrize("filename, activity, expected", [
-    ("technosphere_location.json", activity_A, 50),
-    ("technosphere_location.json", activity_B, 0),
-    ("technosphere_classifications.json", activity_B, 0),
-    ("technosphere_classifications.json", activity_A, 50),
-    ("biosphere_name.json", activity_A, 10),
-    ("biosphere_categories.json", activity_C, 1.3),
-    ("biosphere_categories.json", activity_A, 1.0),
-    ("biosphere_categories.json", activity_D, 1.0),
-    ("biosphere_name_categories.json", activity_A, 20),
-    ("biosphere_name_categories.json", activity_C, 6),
-    ("technosphere_name.json", activity_D, 150),
-    ("technosphere_name.json", activity_E, 250),
-])
+@pytest.mark.parametrize(
+    "filename, activity, expected",
+    [
+        ("technosphere_location.json", activity_A, 50),
+        ("technosphere_location.json", activity_B, 0),
+        ("technosphere_classifications.json", activity_B, 0),
+        ("technosphere_classifications.json", activity_A, 50),
+        ("biosphere_name.json", activity_A, 10),
+        ("biosphere_categories.json", activity_C, 1.3),
+        ("biosphere_categories.json", activity_A, 1.0),
+        ("biosphere_categories.json", activity_D, 1.0),
+        ("biosphere_name_categories.json", activity_A, 20),
+        ("biosphere_name_categories.json", activity_C, 6),
+        ("technosphere_name.json", activity_D, 150),
+        ("technosphere_name.json", activity_E, 250),
+    ],
+)
 def test_cf_mapping(filename, activity, expected):
     GeoResolver._cached_lookup.cache_clear()
     filepath = str(Path("data") / filename)

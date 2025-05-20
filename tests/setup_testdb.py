@@ -12,20 +12,22 @@ if "biosphere" in databases:
 
 # Define biosphere flows
 biosphere = Database("biosphere")
-biosphere.write({
-    ("biosphere", "co2"): {
-        "name": "Carbon dioxide, in air",
-        "unit": "kilogram",
-        "categories": ("air",),
-        "type": "emission",
-    },
-    ("biosphere", "co2_low_pop"): {
+biosphere.write(
+    {
+        ("biosphere", "co2"): {
+            "name": "Carbon dioxide, in air",
+            "unit": "kilogram",
+            "categories": ("air",),
+            "type": "emission",
+        },
+        ("biosphere", "co2_low_pop"): {
             "name": "Carbon dioxide, in air",
             "unit": "kilogram",
             "categories": ("air", "low population"),
             "type": "emission",
-        }
-})
+        },
+    }
+)
 
 test_db = Database("lcia-test-db")
 test_data = [
@@ -35,11 +37,30 @@ test_data = [
         "unit": "kg",
         "location": "RER",
         "reference product": "foo",
-        "classifications": [("cpc", "01: crops"),],
+        "classifications": [
+            ("cpc", "01: crops"),
+        ],
         "exchanges": [
-            {"amount": 1, "type": "production", "product": "foo", "unit": "kg", "name": "A", "input": ("lcia-test-db", "A")},
-            {"amount": 0.5, "type": "technosphere", "input": ("lcia-test-db", "B"), "unit": "kg"},
-            {"amount": 0.1, "type": "biosphere", "input": ("biosphere", "co2"), "unit": "kg"},
+            {
+                "amount": 1,
+                "type": "production",
+                "product": "foo",
+                "unit": "kg",
+                "name": "A",
+                "input": ("lcia-test-db", "A"),
+            },
+            {
+                "amount": 0.5,
+                "type": "technosphere",
+                "input": ("lcia-test-db", "B"),
+                "unit": "kg",
+            },
+            {
+                "amount": 0.1,
+                "type": "biosphere",
+                "input": ("biosphere", "co2"),
+                "unit": "kg",
+            },
         ],
     },
     {
@@ -47,10 +68,24 @@ test_data = [
         "unit": "kg",
         "location": "CH",
         "reference product": "bar",
-        "classifications": [("cpc", "01.1: cereals"),],
+        "classifications": [
+            ("cpc", "01.1: cereals"),
+        ],
         "exchanges": [
-            {"amount": 1, "type": "production", "product": "bar", "unit": "kg", "name": "B", "input": ("lcia-test-db", "B")},
-            {"amount": 0.2, "type": "biosphere", "input": ("biosphere", "co2"), "unit": "kg"},
+            {
+                "amount": 1,
+                "type": "production",
+                "product": "bar",
+                "unit": "kg",
+                "name": "B",
+                "input": ("lcia-test-db", "B"),
+            },
+            {
+                "amount": 0.2,
+                "type": "biosphere",
+                "input": ("biosphere", "co2"),
+                "unit": "kg",
+            },
         ],
     },
     {
@@ -58,11 +93,30 @@ test_data = [
         "unit": "kg",
         "location": "DE",
         "reference product": "baz",
-        "classifications": [("cpc", "01.2: vegetables"),],
+        "classifications": [
+            ("cpc", "01.2: vegetables"),
+        ],
         "exchanges": [
-            {"amount": 1, "type": "production", "product": "baz", "unit": "kg", "name": "C", "input": ("lcia-test-db", "C")},
-            {"amount": 0.3, "type": "technosphere", "input": ("lcia-test-db", "B"), "unit": "kg"},
-            {"amount": 0.1, "type": "biosphere", "input": ("biosphere", "co2_low_pop"), "unit": "kg"},
+            {
+                "amount": 1,
+                "type": "production",
+                "product": "baz",
+                "unit": "kg",
+                "name": "C",
+                "input": ("lcia-test-db", "C"),
+            },
+            {
+                "amount": 0.3,
+                "type": "technosphere",
+                "input": ("lcia-test-db", "B"),
+                "unit": "kg",
+            },
+            {
+                "amount": 0.1,
+                "type": "biosphere",
+                "input": ("biosphere", "co2_low_pop"),
+                "unit": "kg",
+            },
         ],
     },
     {
@@ -72,8 +126,20 @@ test_data = [
         "reference product": "boz",
         "classifications": [],
         "exchanges": [
-            {"amount": 1, "type": "production", "product": "boz", "unit": "kg", "name": "D", "input": ("lcia-test-db", "D")},
-            {"amount": 1, "type": "technosphere", "input": ("lcia-test-db", "A"), "unit": "kg"},  # Will inherit CF for RER
+            {
+                "amount": 1,
+                "type": "production",
+                "product": "boz",
+                "unit": "kg",
+                "name": "D",
+                "input": ("lcia-test-db", "D"),
+            },
+            {
+                "amount": 1,
+                "type": "technosphere",
+                "input": ("lcia-test-db", "A"),
+                "unit": "kg",
+            },  # Will inherit CF for RER
         ],
     },
     {
@@ -83,8 +149,20 @@ test_data = [
         "reference product": "dummy",
         "classifications": [],
         "exchanges": [
-            {"amount": 1, "type": "production", "product": "dummy", "unit": "kg", "name": "E", "input": ("lcia-test-db", "E")},
-            {"amount": 1, "type": "technosphere", "input": ("lcia-test-db", "A"), "unit": "kg"},  # Will fall back to CF for GLO
+            {
+                "amount": 1,
+                "type": "production",
+                "product": "dummy",
+                "unit": "kg",
+                "name": "E",
+                "input": ("lcia-test-db", "E"),
+            },
+            {
+                "amount": 1,
+                "type": "technosphere",
+                "input": ("lcia-test-db", "A"),
+                "unit": "kg",
+            },  # Will fall back to CF for GLO
         ],
     },
 ]
