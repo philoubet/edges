@@ -1,0 +1,40 @@
+{
+  "name": "Test LCIA Method",
+  "version": "1.0",
+  "description": "Test for technosphere_classifications.json",
+  "unit": "kg",
+  "exchanges": [
+    {
+      "value": 100,
+      "weight": 1.0,
+      "supplier": {
+        "classifications": {
+          "cpc": [
+            "01.1"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      }
+    },
+    {
+      "value": 200,
+      "weight": 1.0,
+      "supplier": {
+        "classifications": {
+          "cpc": [
+            "01.2"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      }
+    }
+  ]
+}
