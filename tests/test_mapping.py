@@ -5,6 +5,13 @@ from bw2data import Database, projects, get_activity, __version__
 
 from edges.georesolver import GeoResolver
 
+import pandas as pd
+
+pd.set_option("display.max_rows", None)
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+pd.set_option("display.max_colwidth", None)
+
 
 # Set up once
 if __version__ < (4, 0, 0):
@@ -68,6 +75,13 @@ def test_cf_mapping(filename, activity, expected):
 
     if df is not None:
         df.to_excel(f"test - {filename} {activity['name']} {status}.xlsx", index=False)
+
+    if pytest.approx(lca.score) != expected:
+        print(f"\n🔍 DEBUG - Test failed for: {filename} / {activity['name']}")
+        print(f"Expected score: {expected}, got: {lca.score}")
+        if df is not None:
+            print("\n🔎 Full CF table:")
+            print(df.to_string(index=False))
 
     lca._geo = None
 

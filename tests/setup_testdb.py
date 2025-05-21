@@ -1,5 +1,4 @@
-from bw2data import Database, projects, methods, databases, __version__
-from bw2io import bw2setup
+from bw2data import Database, projects, databases, __version__
 
 
 if __version__ < (4, 0, 0):
