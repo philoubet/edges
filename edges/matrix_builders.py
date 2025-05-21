@@ -1,5 +1,6 @@
 from bw2calc import LCA
-from scipy.sparse import lil_matrix, coo_matrix
+from scipy.sparse import lil_matrix, coo_matrix, csr_matrix
+import numpy as np
 
 
 def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
@@ -15,13 +16,11 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
     return lil_matrix(lca.technosphere_matrix.shape)
 
 
-def build_technosphere_edges_matrix(technosphere_matrix, supply_array):
+def build_technosphere_edges_matrix(technosphere_matrix: csr_matrix, supply_array: np.ndarray):
     """
     Generate a matrix with the technosphere flows.
     """
 
-    print(type(technosphere_matrix))
-    print(type(supply_array))
     # Convert CSR to COO format for easier manipulation
     coo = technosphere_matrix.tocoo()
 

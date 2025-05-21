@@ -71,6 +71,10 @@ jobs:
           pip install pytest-instafail
           pip install -e . --verbose
 
+      - name: Set up test database
+        run: |
+          python tests/setup_testdb.py
+
       - name: Run tests
         run: |
           pytest
