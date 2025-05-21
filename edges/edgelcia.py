@@ -387,10 +387,12 @@ class EdgeLCIA:
             # Fallback to 2D
             self.scenario_cfs = []
             scenario_name = None
-            if self.scenario is not None:
-                scenario_name = self.scenario
+
             if scenario is not None:
                 scenario_name = scenario
+            elif self.scenario is not None:
+                scenario_name = self.scenario
+
             if scenario_name is None:
                 if isinstance(self.parameters, dict):
                     if len(self.parameters) > 0:
@@ -1456,6 +1458,19 @@ class EdgeLCIA:
             [
                 "CFs used",
                 len([x["value"] for x in self.cfs_mapping if len(x["positions"]) > 0]),
+            ]
+        )
+        unique_cfs = set(
+            [
+                x["value"]
+                for x in self.cfs_mapping
+                if len(x["positions"]) > 0 and x["value"] is not None
+            ]
+        )
+        rows.append(
+            [
+                "Unique CFs used",
+                len(unique_cfs),
             ]
         )
 
