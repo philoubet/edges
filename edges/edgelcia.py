@@ -1460,6 +1460,19 @@ class EdgeLCIA:
                 len([x["value"] for x in self.cfs_mapping if len(x["positions"]) > 0]),
             ]
         )
+        unique_cfs = set(
+            [
+                x["value"]
+                for x in self.cfs_mapping
+                if len(x["positions"]) > 0 and x["value"] is not None
+            ]
+        )
+        rows.append(
+            [
+                "Unique CFs used",
+                len(unique_cfs),
+            ]
+        )
 
         if self.ignored_method_exchanges:
             rows.append(
