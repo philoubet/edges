@@ -1,7 +1,25 @@
-from bw2data import Database, projects, methods, databases
+from bw2data import Database, projects, methods, databases, __version__
 from bw2io import bw2setup
 
-projects.set_current("EdgeLCIA-Test")
+
+if __version__ < (4, 0, 0):
+    is_bw2 = True
+else:
+    is_bw2 = False
+    try:
+        projects.migrate_project_25()
+    except:
+        pass
+
+print(f"Using bw2: {is_bw2}")
+
+
+if is_bw2 is True:
+    project = "EdgeLCIA-Test"
+    projects.set_current(project)
+else:
+    project = "EdgeLCIA-Test-bw25"
+    projects.set_current(project)
 
 # Clean up if exists
 if "lcia-test-db" in databases:

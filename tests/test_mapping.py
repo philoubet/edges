@@ -1,13 +1,22 @@
 import pytest
 from pathlib import Path
 from edges import EdgeLCIA
-from bw2data import Database, projects, get_activity
+from bw2data import Database, projects, get_activity, __version__
 
 from edges.georesolver import GeoResolver
 
 
 # Set up once
-projects.set_current("EdgeLCIA-Test")
+if __version__ < (4, 0, 0):
+    is_bw2 = True
+else:
+    is_bw2 = False
+
+if is_bw2:
+    projects.set_current("EdgeLCIA-Test")
+else:
+    projects.set_current("EdgeLCIA-Test-bw25")
+
 db = Database("lcia-test-db")
 activity_A = get_activity(("lcia-test-db", "A"))
 activity_B = get_activity(("lcia-test-db", "B"))
