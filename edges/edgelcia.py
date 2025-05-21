@@ -770,8 +770,9 @@ class EdgeLCIA:
             scenario_name = None
             if scenario is not None:
                 scenario_name = scenario
-            if self.scenario is not None:
+            elif self.scenario is not None:
                 scenario_name = self.scenario
+
             if scenario_name is None:
                 if isinstance(self.parameters, dict):
                     if len(self.parameters) > 0:
