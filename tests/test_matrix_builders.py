@@ -5,7 +5,10 @@ import numpy as np
 from scipy.sparse import csr_matrix, lil_matrix
 from unittest.mock import MagicMock
 
-from edges.matrix_builders import initialize_lcia_matrix, build_technosphere_edges_matrix
+from edges.matrix_builders import (
+    initialize_lcia_matrix,
+    build_technosphere_edges_matrix,
+)
 
 
 def test_initialize_lcia_matrix_inventory():
@@ -36,11 +39,12 @@ def test_build_technosphere_edges_matrix():
     assert isinstance(result, csr_matrix)
     assert result.shape == (4, 2)
 
-    expected = np.array([
-        [0.0, 0.0],
-        [0.0, 10.0],  # -2.0 * 5.0 = 10
-        [0.0, 0.0],
-        [40.0, 0.0],  # -4.0 * 10.0 = 40
-    ])
+    expected = np.array(
+        [
+            [0.0, 0.0],
+            [0.0, 10.0],  # -2.0 * 5.0 = 10
+            [0.0, 0.0],
+            [40.0, 0.0],  # -4.0 * 10.0 = 40
+        ]
+    )
     np.testing.assert_array_almost_equal(result.toarray(), expected)
-

@@ -2,19 +2,26 @@ import pytest
 import numpy as np
 from edges.uncertainty import sample_cf_distribution
 
+
 def test_sample_constant_cf():
     cf = {"value": 42}
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=100, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=100, random_state=random_state
+    )
     assert np.all(samples == 42)
+
 
 def test_sample_expression_cf():
     cf = {"value": "A * 2"}
     parameters = {"A": 5}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=100, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=100, random_state=random_state
+    )
     assert np.all(samples == 10)
+
 
 def test_sample_uniform_distribution():
     cf = {
@@ -26,10 +33,13 @@ def test_sample_uniform_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert samples.shape == (1000,)
     assert np.all(samples >= 2)
     assert np.all(samples <= 5)
+
 
 def test_sample_normal_distribution():
     cf = {
@@ -41,11 +51,14 @@ def test_sample_normal_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert samples.shape == (1000,)
     assert np.all(samples >= 0)
     assert np.all(samples <= 10)
     assert abs(np.mean(samples) - 5) < 0.3
+
 
 def test_sample_triangular_distribution():
     cf = {
@@ -57,10 +70,13 @@ def test_sample_triangular_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples >= 1)
     assert np.all(samples <= 5)
     assert abs(np.mean(samples) - 3) < 0.3
+
 
 def test_sample_log_normal_distribution():
     cf = {
@@ -78,9 +94,12 @@ def test_sample_log_normal_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples >= 0)
     assert np.all(samples <= 10)
+
 
 def test_sample_beta_distribution():
     cf = {
@@ -99,9 +118,12 @@ def test_sample_beta_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples >= 0)
     assert np.all(samples <= 1)
+
 
 def test_sample_gamma_distribution():
     cf = {
@@ -119,9 +141,12 @@ def test_sample_gamma_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples >= 0)
     assert np.all(samples <= 10)
+
 
 def test_sample_weibull_distribution():
     cf = {
@@ -139,9 +164,12 @@ def test_sample_weibull_distribution():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples >= 0)
     assert np.all(samples <= 10)
+
 
 def test_negative_flag_applies():
     cf = {
@@ -154,18 +182,20 @@ def test_negative_flag_applies():
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=1000, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=1000, random_state=random_state
+    )
     assert np.all(samples <= 0)
+
 
 def test_fallback_to_constant_on_unknown_distribution():
     cf = {
         "value": 7.5,
-        "uncertainty": {
-            "distribution": "unknown_dist",
-            "parameters": {}
-        }
+        "uncertainty": {"distribution": "unknown_dist", "parameters": {}},
     }
     parameters = {}
     random_state = np.random.default_rng(42)
-    samples = sample_cf_distribution(cf, parameters=parameters, n=100, random_state=random_state)
+    samples = sample_cf_distribution(
+        cf, parameters=parameters, n=100, random_state=random_state
+    )
     assert np.allclose(samples, 7.5)

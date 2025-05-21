@@ -1,17 +1,19 @@
 """
 This module contains the Uncertainty class, which is responsible for handling
 """
+
 import numpy as np
 from scipy import stats
 from edges.utils import safe_eval
 
+
 def sample_cf_distribution(
-        cf: dict,
-        n: int,
-        parameters: dict,
-        random_state: np.random._generator.Generator,
-        use_distributions: bool = True,
-        SAFE_GLOBALS: dict = None,
+    cf: dict,
+    n: int,
+    parameters: dict,
+    random_state: np.random._generator.Generator,
+    use_distributions: bool = True,
+    SAFE_GLOBALS: dict = None,
 ) -> np.ndarray:
     """
     Generate n random CF values from the distribution info in the 'uncertainty' key.
@@ -42,9 +44,7 @@ def sample_cf_distribution(
         samples = random_state.choice(values, size=n, p=weights)
 
     elif dist_name == "uniform":
-        samples = random_state.uniform(
-            params["minimum"], params["maximum"], size=n
-        )
+        samples = random_state.uniform(params["minimum"], params["maximum"], size=n)
 
     elif dist_name == "triang":
         left = params["minimum"]
@@ -53,9 +53,7 @@ def sample_cf_distribution(
         samples = random_state.triangular(left, mode, right, size=n)
 
     elif dist_name == "normal":
-        samples = random_state.normal(
-            loc=params["loc"], scale=params["scale"], size=n
-        )
+        samples = random_state.normal(loc=params["loc"], scale=params["scale"], size=n)
         samples = np.clip(samples, params["minimum"], params["maximum"])
 
     elif dist_name == "lognorm":
@@ -76,8 +74,8 @@ def sample_cf_distribution(
 
     elif dist_name == "gamma":
         samples = (
-                random_state.gamma(params["shape_a"], params["scale"], size=n)
-                + params["loc"]
+            random_state.gamma(params["shape_a"], params["scale"], size=n)
+            + params["loc"]
         )
         samples = np.clip(samples, params["minimum"], params["maximum"])
 

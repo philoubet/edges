@@ -66,7 +66,10 @@ def process_cf_list(
             expected = supplier_cf.get(k, "")
 
             if k == "location" and candidate_suppliers:
-                match = any(match_operator(loc_val, expected, operator) for loc_val in candidate_suppliers)
+                match = any(
+                    match_operator(loc_val, expected, operator)
+                    for loc_val in candidate_suppliers
+                )
             else:
                 match = match_operator(val, expected, operator)
 
@@ -85,7 +88,10 @@ def process_cf_list(
             expected = consumer_cf.get(k, "")
 
             if k == "location" and candidate_consumers:
-                match = any(match_operator(loc_val, expected, operator) for loc_val in candidate_consumers)
+                match = any(
+                    match_operator(loc_val, expected, operator)
+                    for loc_val in candidate_consumers
+                )
             else:
                 match = match_operator(val, expected, operator)
 
@@ -104,7 +110,11 @@ def process_cf_list(
 
         cf_cons_class = consumer_cf.get("classifications")
         ds_cons_class = consumer_info.get("classifications")
-        if cf_cons_class and ds_cons_class and matches_classifications(cf_cons_class, ds_cons_class):
+        if (
+            cf_cons_class
+            and ds_cons_class
+            and matches_classifications(cf_cons_class, ds_cons_class)
+        ):
             match_score += 1
 
         if match_score > best_score:
@@ -126,12 +136,13 @@ def matches_classifications(cf_classifications, dataset_classifications):
             for code in codes
         ]
     elif isinstance(cf_classifications, (list, tuple)):
-        if all(isinstance(x, tuple) and isinstance(x[1], (list, tuple)) for x in cf_classifications):
+        if all(
+            isinstance(x, tuple) and isinstance(x[1], (list, tuple))
+            for x in cf_classifications
+        ):
             # Convert from tuple of tuples like (('cpc', ('01.1',)),) -> [('cpc', '01.1')]
             cf_classifications = [
-                (scheme, code)
-                for scheme, codes in cf_classifications
-                for code in codes
+                (scheme, code) for scheme, codes in cf_classifications for code in codes
             ]
 
     for scheme, value in dataset_classifications:
@@ -173,7 +184,9 @@ def normalize_cf_entries(cf_list: list[dict]) -> list[dict]:
         if isinstance(classifications, dict):
             # Normalize from dict
             supplier["classifications"] = tuple(
-                (scheme, val) for scheme, values in sorted(classifications.items()) for val in values
+                (scheme, val)
+                for scheme, values in sorted(classifications.items())
+                for val in values
             )
         elif isinstance(classifications, list):
             # Already list of (scheme, code), just ensure it's a tuple
@@ -192,8 +205,7 @@ def normalize_cf_entries(cf_list: list[dict]) -> list[dict]:
 
 
 def build_cf_index(
-    raw_cfs: list[dict],
-    required_supplier_fields: set
+    raw_cfs: list[dict], required_supplier_fields: set
 ) -> dict[str, dict[tuple, list[dict]]]:
     """
     Build a nested CF index:
@@ -208,7 +220,9 @@ def build_cf_index(
 
         supplier = cf.get("supplier", {})
         # Create supplier signature
-        sig = tuple(sorted((k, supplier[k]) for k in required_supplier_fields if k in supplier))
+        sig = tuple(
+            sorted((k, supplier[k]) for k in required_supplier_fields if k in supplier)
+        )
 
         index[consumer_loc][sig].append(cf)
 
@@ -241,11 +255,14 @@ def preprocess_flows(flows_list: list, mandatory_fields: set) -> dict:
     lookup = {}
 
     for flow in flows_list:
+
         def make_value_hashable(v):
             if isinstance(v, list):
                 return tuple(v)
             if isinstance(v, dict):
-                return tuple(sorted((k, make_value_hashable(val)) for k, val in v.items()))
+                return tuple(
+                    sorted((k, make_value_hashable(val)) for k, val in v.items())
+                )
             return v
 
         # Build a hashable key from mandatory fields (if any are present)

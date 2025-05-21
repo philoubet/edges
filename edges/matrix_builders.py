@@ -14,6 +14,7 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
         return lil_matrix(lca.inventory.shape)
     return lil_matrix(lca.technosphere_matrix.shape)
 
+
 def build_technosphere_edges_matrix(technosphere_matrix, supply_array):
     """
     Generate a matrix with the technosphere flows.

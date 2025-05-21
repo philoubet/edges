@@ -470,7 +470,7 @@ def compute_average_cf(
     cf_index: dict,
     required_supplier_fields: set = None,
     required_consumer_fields: set = None,
-    logger=None
+    logger=None,
 ) -> tuple[str | float, Optional[dict]]:
     """
     Compute the weighted average characterization factor (CF) for a given supplier-consumer pair.
@@ -483,7 +483,8 @@ def compute_average_cf(
         return 0, None
 
     valid_candidates = [
-        (loc, weight[loc]) for loc in set(candidate_suppliers + candidate_consumers)
+        (loc, weight[loc])
+        for loc in set(candidate_suppliers + candidate_consumers)
         if loc in weight and weight[loc] > 0
     ]
     if not valid_candidates:
@@ -536,5 +537,3 @@ def compute_average_cf(
     expr = " + ".join(expressions)
 
     return (expr, matched_cfs[0][0]) if len(matched_cfs) == 1 else (expr, None)
-
-
