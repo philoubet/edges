@@ -179,7 +179,10 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     if operator == "equals":
         return value == target
     elif operator == "startswith":
-        return value.startswith(target)
+        if isinstance(value, str):
+            return value.startswith(target)
+        if isinstance(value, tuple):
+            return value[0].startswith(target)
     elif operator == "contains":
         return target in value
     return False

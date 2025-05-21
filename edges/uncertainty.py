@@ -37,11 +37,28 @@ def sample_cf_distribution(
     negative = unc.get("negative", 0)
 
     if dist_name == "discrete_empirical":
-        values = np.array(params["values"])
+        values = params["values"]
         weights = np.array(params["weights"])
-        if weights.sum() != 0:
-            weights = weights / weights.sum()
-        samples = random_state.choice(values, size=n, p=weights)
+        weights = weights / weights.sum() if weights.sum() != 0 else weights
+
+        chosen_indices = random_state.choice(len(values), size=n, p=weights)
+
+        samples = np.empty(n)
+
+        for i, idx in enumerate(chosen_indices):
+            item = values[idx]
+            if isinstance(item, dict) and "distribution" in item:
+                # Recursively sample this distribution
+                samples[i] = sample_cf_distribution(
+                    cf={"value": 0, "uncertainty": item},
+                    n=1,
+                    parameters=parameters,
+                    random_state=random_state,
+                    use_distributions=use_distributions,
+                    SAFE_GLOBALS=SAFE_GLOBALS,
+                )[0]
+            else:
+                samples[i] = item
 
     elif dist_name == "uniform":
         samples = random_state.uniform(params["minimum"], params["maximum"], size=n)
