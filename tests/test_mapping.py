@@ -56,6 +56,9 @@ def test_cf_mapping(filename, activity, expected):
         demand={activity: 1},
         filepath=filepath,
     )
+    from pprint import pprint
+    pprint(lca.raw_cfs_data)
+
     lca.initialize_weights()
     lca.lci()
     lca.map_exchanges()
@@ -65,6 +68,7 @@ def test_cf_mapping(filename, activity, expected):
     lca.map_remaining_locations_to_global()
     lca.evaluate_cfs()
     lca.lcia()
+
 
     df = lca.generate_cf_table()
 
@@ -83,6 +87,6 @@ def test_cf_mapping(filename, activity, expected):
             print("\n🔎 Full CF table:")
             print(df.to_string(index=False))
 
+    assert pytest.approx(lca.score) == expected
     lca._geo = None
 
-    assert pytest.approx(lca.score) == expected
