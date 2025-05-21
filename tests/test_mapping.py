@@ -61,6 +61,7 @@ def test_cf_mapping(filename, activity, expected):
         filepath=filepath,
     )
     from pprint import pprint
+
     pprint(lca.raw_cfs_data)
 
     assert len(lca.raw_cfs_data) >= 2, "Expected 2 CF entries or more from JSON"
@@ -73,7 +74,6 @@ def test_cf_mapping(filename, activity, expected):
     lca.map_remaining_locations_to_global()
     lca.evaluate_cfs()
     lca.lcia()
-
 
     df = lca.generate_cf_table()
 
@@ -94,4 +94,3 @@ def test_cf_mapping(filename, activity, expected):
 
     assert pytest.approx(lca.score) == expected
     lca._geo = None
-
