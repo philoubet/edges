@@ -94,6 +94,7 @@ def test_cf_mapping(filename, activity, expected):
     assert pytest.approx(lca.score) == expected
     lca._geo = None
 
+
 def test_parameters():
 
     activity = activity_A
@@ -101,8 +102,14 @@ def test_parameters():
 
     params = {
         "some scenario": {
-            "parameter_1": {"1": 1, "2": 2,},
-            "parameter_2": {"1": 1, "2": 2, },
+            "parameter_1": {
+                "1": 1,
+                "2": 2,
+            },
+            "parameter_2": {
+                "1": 1,
+                "2": 2,
+            },
         }
     }
 
