@@ -396,10 +396,8 @@ class EdgeLCIA:
                     if len(self.parameters) > 0:
                         scenario_name = list(self.parameters.keys())[0]
 
-
             resolved_params = self.resolve_parameters_for_scenario(
                 scenario_idx, scenario_name
-
             )
 
             for cf in self.cfs_mapping:
@@ -509,7 +507,6 @@ class EdgeLCIA:
                 )
                 filtered["classifications"] = ()
 
-
         return make_hashable(filtered)
 
     def map_aggregate_locations(self) -> None:
@@ -564,7 +561,6 @@ class EdgeLCIA:
                     subregions = [
                         g
                         for g in self.geo.resolve(location, containing=True)
-
                         if g in self.weights
                     ]
 
@@ -575,7 +571,6 @@ class EdgeLCIA:
                     continue
 
                 candidate_locations = subregions
-
 
                 if not candidate_locations:
                     continue
