@@ -50,7 +50,6 @@ activity_E = get_activity(("lcia-test-db", "E"))
     ],
 )
 def test_cf_mapping(filename, activity, expected):
-    GeoResolver._cached_lookup.cache_clear()
     filepath = str(Path("data") / filename)
 
     print(f"📄 Loading CF file from: {filepath}")
@@ -94,3 +93,37 @@ def test_cf_mapping(filename, activity, expected):
 
     assert pytest.approx(lca.score) == expected
     lca._geo = None
+
+def test_parameters():
+
+    activity = activity_A
+    filepath = str(Path("data") / "biosphere_name_w_parameters.json")
+
+    params = {
+        "some scenario": {
+            "parameter_1": {"1": 1, "2": 2,},
+            "parameter_2": {"1": 1, "2": 2, },
+        }
+    }
+
+    lca = EdgeLCIA(
+        demand={activity: 1},
+        filepath=filepath,
+        parameters=params,
+    )
+    lca.lci()
+    lca.map_exchanges()
+
+    results = []
+    for scenario in [
+        "1",
+        "2",
+    ]:
+
+        lca.evaluate_cfs(scenario="some scenario", scenario_idx=scenario)
+        lca.lcia()
+        results.append(lca.score)
+
+    print(results)
+    # assert that all values are different
+    assert len(set(results)) == len(results), "Expected all values to be different"
