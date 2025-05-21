@@ -396,12 +396,15 @@ class EdgeLCIA:
                     if len(self.parameters) > 0:
                         scenario_name = list(self.parameters.keys())[0]
 
+
             resolved_params = self.resolve_parameters_for_scenario(
                 scenario_idx, scenario_name
+
             )
 
             for cf in self.cfs_mapping:
                 if isinstance(cf["value"], str):
+
                     value = safe_eval_cached(
                         cf["value"],
                         parameters=resolved_params,
@@ -506,6 +509,7 @@ class EdgeLCIA:
                 )
                 filtered["classifications"] = ()
 
+
         return make_hashable(filtered)
 
     def map_aggregate_locations(self) -> None:
@@ -560,6 +564,7 @@ class EdgeLCIA:
                     subregions = [
                         g
                         for g in self.geo.resolve(location, containing=True)
+
                         if g in self.weights
                     ]
 
@@ -570,6 +575,7 @@ class EdgeLCIA:
                     continue
 
                 candidate_locations = subregions
+
 
                 if not candidate_locations:
                     continue
@@ -728,6 +734,7 @@ class EdgeLCIA:
         In Pass 2, edges that did not pass prefiltering (and whose operator is not "equals") are
         processed individually using full matching logic.
         """
+
         self.initialize_weights()
 
         cf_operators = {
@@ -954,6 +961,7 @@ class EdgeLCIA:
         Edges whose supplier info (based on required supplier fields excluding location)
         doesn't appear in the CF lookup are skipped.
         """
+
         self.initialize_weights()
 
         cfs_lookup = preprocess_cfs(
@@ -1148,6 +1156,7 @@ class EdgeLCIA:
         Handle remaining exchanges by assigning global CFs while pre-filtering
         unprocessed edges based on supplier signature.
         """
+
         self.initialize_weights()
 
         cf_operators = {
