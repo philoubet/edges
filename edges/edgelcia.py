@@ -39,7 +39,8 @@ from .flow_matching import (
     build_index,
     compute_cf_memoized_factory,
     normalize_signature_data,
-    group_edges_by_signature, compute_average_cf
+    group_edges_by_signature,
+    compute_average_cf,
 )
 from .georesolver import GeoResolver
 from .uncertainty import sample_cf_distribution
@@ -694,9 +695,13 @@ class EdgeLCIA:
             )
 
             # Process remaining edges
-            for (s_key, c_key, (candidate_suppliers, candidate_consumers)), edge_group in tqdm(
-                    grouped_edges.items(),
-                    desc="Processing static groups (pass 2)",
+            for (
+                s_key,
+                c_key,
+                (candidate_suppliers, candidate_consumers),
+            ), edge_group in tqdm(
+                grouped_edges.items(),
+                desc="Processing static groups (pass 2)",
             ):
                 new_cf, matched_cf_obj = compute_cf_memoized(
                     s_key, c_key, candidate_suppliers, candidate_consumers
@@ -859,17 +864,19 @@ class EdgeLCIA:
             grouped_edges = []
 
             for (
-                    supplier_idx,
-                    consumer_idx,
-                    supplier_info,
-                    consumer_info,
-                    cons_act_sig,
+                supplier_idx,
+                consumer_idx,
+                supplier_info,
+                consumer_info,
+                cons_act_sig,
             ) in remaining_edges:
                 name, reference_product = cons_act_sig
 
                 exclusion_locs = [
                     loc
-                    for loc in self.technosphere_flows_lookup.get((name, reference_product), [])
+                    for loc in self.technosphere_flows_lookup.get(
+                        (name, reference_product), []
+                    )
                     if loc not in ["RoW", "RoE"] and loc in self.weights
                 ]
 
@@ -885,7 +892,13 @@ class EdgeLCIA:
                 )
 
                 grouped_edges.append(
-                    (supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_consumers)
+                    (
+                        supplier_idx,
+                        consumer_idx,
+                        supplier_info,
+                        consumer_info,
+                        candidate_consumers,
+                    )
                 )
 
                 compute_cf_memoized = compute_cf_memoized_factory(
@@ -900,8 +913,12 @@ class EdgeLCIA:
                 grouped = defaultdict(list)
 
                 for s_idx, c_idx, s_info, c_info, candidate_consumers in grouped_edges:
-                    s_filtered = normalize_signature_data(s_info, self.required_supplier_fields)
-                    c_filtered = normalize_signature_data(c_info, self.required_consumer_fields)
+                    s_filtered = normalize_signature_data(
+                        s_info, self.required_supplier_fields
+                    )
+                    c_filtered = normalize_signature_data(
+                        c_info, self.required_consumer_fields
+                    )
 
                     s_key = make_hashable(s_filtered)
                     c_key = make_hashable(c_filtered)
@@ -910,7 +927,8 @@ class EdgeLCIA:
                     grouped[(s_key, c_key, loc_key)].append((s_idx, c_idx))
 
                 for (s_key, c_key, loc_key), edge_group in tqdm(
-                        grouped.items(), desc="Processing remaining dynamic edges (batched pass 2)"
+                    grouped.items(),
+                    desc="Processing remaining dynamic edges (batched pass 2)",
                 ):
                     _, candidate_consumers = loc_key
                     new_cf, matched_cf_obj = compute_cf_memoized(
@@ -1185,10 +1203,10 @@ class EdgeLCIA:
 
             prepared_edges = []
             for (
-                    supplier_idx,
-                    consumer_idx,
-                    supplier_info,
-                    consumer_info,
+                supplier_idx,
+                consumer_idx,
+                supplier_info,
+                consumer_info,
             ) in remaining_edges:
                 candidate_suppliers = global_locations
                 candidate_consumers = global_locations
@@ -1218,8 +1236,8 @@ class EdgeLCIA:
             )
 
             for (s_key, c_key, supp_locs, cons_locs), edge_group in tqdm(
-                    grouped.items(),
-                    desc="Processing remaining global edges (batched pass 2)",
+                grouped.items(),
+                desc="Processing remaining global edges (batched pass 2)",
             ):
                 new_cf, matched_cf_obj = compute_cf_memoized(
                     s_key, c_key, supp_locs, cons_locs
