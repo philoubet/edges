@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from edges.utils import (
     format_method_name,
     make_hashable,
@@ -56,10 +57,20 @@ def test_safe_eval_cached():
         == 6
     )
 
-
 def test_get_shares():
     candidates = [("A", 1), ("B", 2), ("C", 3)]
     names, shares = get_shares(tuple(candidates))
     assert names == ["A", "B", "C"]
     assert shares.shape[0] == 3
     assert abs(shares.sum() - 1) < 1e-6
+
+def test_get_shares_normal_case():
+    items = [("A", 10), ("B", 30)]
+    keys, shares = get_shares(tuple(items))
+    assert keys == ["A", "B"]
+    assert np.allclose(shares, [0.25, 0.75])
+
+def test_get_shares_zero_total():
+    items = [("A", 0), ("B", 0)]
+    keys, shares = get_shares(tuple(items))
+    assert np.allclose(shares, [0.0, 0.0])

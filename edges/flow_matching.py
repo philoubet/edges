@@ -1,5 +1,9 @@
+import logging
 from collections import defaultdict
-from functools import cache
+from functools import cache, lru_cache
+from typing import Optional
+
+from .utils import make_hashable, get_shares
 
 
 def preprocess_cfs(cf_list, by="consumer"):
@@ -84,6 +88,10 @@ def process_cf_list(
         for k in filtered_consumer:
             if k == "classifications":
                 continue
+
+            if k not in consumer_cf:
+                continue  # Missing field in CF means match anything
+
             val = filtered_consumer.get(k, "")
             expected = consumer_cf.get(k, "")
 
@@ -177,7 +185,8 @@ def match_operator(value: str, target: str, operator: str) -> bool:
     return False
 
 
-def normalize_cf_entries(cf_list: list[dict]) -> list[dict]:
+def normalize_classification_entries(cf_list: list[dict]) -> list[dict]:
+
     for cf in cf_list:
         supplier = cf.get("supplier", {})
         classifications = supplier.get("classifications")
@@ -214,12 +223,9 @@ def build_cf_index(
     index = defaultdict(lambda: defaultdict(list))
 
     for cf in raw_cfs:
-        consumer_loc = cf.get("consumer", {}).get("location")
-        if not consumer_loc:
-            continue
+        consumer_loc = cf.get("consumer", {}).get("location", "__ANY__")
 
         supplier = cf.get("supplier", {})
-        # Create supplier signature
         sig = tuple(
             sorted((k, supplier[k]) for k in required_supplier_fields if k in supplier)
         )
@@ -227,6 +233,8 @@ def build_cf_index(
         index[consumer_loc][sig].append(cf)
 
     return index
+
+
 
 
 @cache
@@ -400,3 +408,150 @@ def match_with_index(
             return classified_matches
 
     return matches
+
+
+def compute_cf_memoized_factory(cf_index, required_supplier_fields, required_consumer_fields, weights, logger):
+    @lru_cache(maxsize=None)
+    def compute_cf(s_key, c_key, supplier_candidates, consumer_candidates):
+        return compute_average_cf(
+            candidate_suppliers=list(supplier_candidates),
+            candidate_consumers=list(consumer_candidates),
+            supplier_info=dict(s_key),
+            consumer_info=dict(c_key),
+            weight=weights,
+            cf_index=cf_index,
+            required_supplier_fields=required_supplier_fields,
+            required_consumer_fields=required_consumer_fields,
+            logger=logger,
+        )
+    return compute_cf
+
+def normalize_signature_data(info_dict, required_fields):
+    filtered = {
+        k: info_dict[k]
+        for k in required_fields
+        if k in info_dict
+    }
+
+    # Normalize classifications
+    if "classifications" in filtered:
+        c = filtered["classifications"]
+        if isinstance(c, dict):
+            filtered["classifications"] = tuple(
+                (scheme, tuple(sorted(map(str, codes))))
+                for scheme, codes in sorted(c.items())
+            )
+        elif isinstance(c, list):
+            filtered["classifications"] = tuple(sorted(map(str, c)))
+
+    return filtered
+
+
+
+def group_edges_by_signature(edge_list, required_supplier_fields, required_consumer_fields, geo, weights):
+    grouped = defaultdict(list)
+
+    for supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_locs in edge_list:
+        s_filtered = normalize_signature_data(supplier_info, required_supplier_fields)
+        c_filtered = normalize_signature_data(consumer_info, required_consumer_fields)
+
+        s_key = make_hashable(s_filtered)
+        c_key = make_hashable(c_filtered)
+
+        # Determine candidate location grouping key
+        supplier_sub = geo.resolve(supplier_info.get("location"), containing=True) if "location" in required_supplier_fields else []
+        consumer_sub = geo.resolve(consumer_info.get("location"), containing=True) if "location" in required_consumer_fields else []
+
+        loc_key = (
+            tuple(sorted(set([g for g in supplier_sub if g in weights]))),
+            tuple(sorted(set([g for g in consumer_sub if g in weights]))),
+        )
+
+        grouped[(s_key, c_key, loc_key)].append((supplier_idx, consumer_idx))
+
+    return grouped
+
+
+def compute_average_cf(
+    candidate_suppliers: list,
+    candidate_consumers: list,
+    supplier_info: dict,
+    consumer_info: dict,
+    weight: dict,
+    cf_index: dict,
+    required_supplier_fields: set = None,
+    required_consumer_fields: set = None,
+    logger=None,
+) -> tuple[str | float, Optional[dict]]:
+    """
+    Compute the weighted average characterization factor (CF) for a given supplier-consumer pair.
+    Supports disaggregated regional matching on both supplier and consumer sides.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    if not candidate_suppliers and not candidate_consumers:
+        return 0, None
+
+    valid_candidates = [
+        (loc, weight[loc])
+        for loc in set(candidate_suppliers + candidate_consumers)
+        if loc in weight and weight[loc] > 0
+    ]
+    if not valid_candidates:
+        return 0, None
+
+    cand_locs, shares = get_shares(tuple(valid_candidates))
+    if not shares.any():
+        return 0, None
+
+    filtered_supplier = {
+        k: supplier_info[k] for k in required_supplier_fields if k in supplier_info
+    }
+    filtered_consumer = {
+        k: consumer_info[k] for k in required_consumer_fields if k in consumer_info
+    }
+
+    if "classifications" in filtered_supplier:
+        c = filtered_supplier["classifications"]
+        if isinstance(c, dict):
+            filtered_supplier["classifications"] = tuple(
+                (scheme, tuple(sorted(vals))) for scheme, vals in c.items()
+            )
+        elif isinstance(c, (list, tuple)):
+            filtered_supplier["classifications"] = tuple(sorted(c))
+
+    supplier_sig = make_hashable(filtered_supplier)
+    matched_cfs = []
+
+    for candidate_location, share in zip(cand_locs, shares):
+        loc_cfs_dict = cf_index.get(candidate_location)
+
+        if loc_cfs_dict is None:
+            loc_cfs_dict = cf_index.get("__ANY__")
+
+        if not loc_cfs_dict:
+            continue
+
+        loc_cfs = loc_cfs_dict.get(supplier_sig, [])
+
+        matched_cfs.extend(
+            process_cf_list(
+                loc_cfs,
+                filtered_supplier,
+                filtered_consumer,
+                supplier_info,
+                consumer_info,
+                candidate_suppliers,
+                candidate_consumers,
+                share,
+            )
+        )
+
+    if not matched_cfs:
+        return 0, None
+
+    expressions = [f"({share:.6f} * ({cf['value']}))" for cf, share in matched_cfs]
+    expr = " + ".join(expressions)
+
+    return (expr, matched_cfs[0][0]) if len(matched_cfs) == 1 else (expr, None)
