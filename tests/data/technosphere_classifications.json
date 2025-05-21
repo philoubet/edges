@@ -19,6 +19,22 @@
         "matrix": "technosphere",
         "location": "RER"
       }
+    },
+    {
+      "value": 200,
+      "weight": 1.0,
+      "supplier": {
+        "classifications": {
+          "cpc": [
+            "01.2"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      }
     }
   ]
 }

@@ -44,7 +44,7 @@ activity_E = get_activity(("lcia-test-db", "E"))
         ("biosphere_categories.json", activity_A, 1.0),
         ("biosphere_categories.json", activity_D, 1.0),
         ("biosphere_name_categories.json", activity_A, 20),
-        ("biosphere_name_categories.json", activity_C, 6),
+        ("biosphere_name_categories.json", activity_C, 26),
         ("technosphere_name.json", activity_D, 150),
         ("technosphere_name.json", activity_E, 250),
     ],
@@ -52,6 +52,10 @@ activity_E = get_activity(("lcia-test-db", "E"))
 def test_cf_mapping(filename, activity, expected):
     GeoResolver._cached_lookup.cache_clear()
     filepath = str(Path("data") / filename)
+
+    print(f"📄 Loading CF file from: {filepath}")
+    print(Path(filepath).read_text())
+
     lca = EdgeLCIA(
         demand={activity: 1},
         filepath=filepath,
@@ -59,7 +63,8 @@ def test_cf_mapping(filename, activity, expected):
     from pprint import pprint
     pprint(lca.raw_cfs_data)
 
-    lca.initialize_weights()
+    assert len(lca.raw_cfs_data) >= 2, "Expected 2 CF entries or more from JSON"
+
     lca.lci()
     lca.map_exchanges()
     lca.map_aggregate_locations()

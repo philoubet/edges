@@ -16,6 +16,19 @@
       "consumer": {
         "matrix": "technosphere"
       }
+    },
+    {
+      "value": 200,
+      "weight": 1.0,
+      "supplier": {
+        "categories": [
+          "air", "low population"
+        ],
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere"
+      }
     }
   ]
 }

@@ -15,6 +15,17 @@
         "matrix": "technosphere",
         "location": "RER"
       }
+    },
+    {
+      "value": 200,
+      "weight": 1.0,
+      "supplier": {
+        "location": "DE",
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere"
+      }
     }
   ]
 }

@@ -9,6 +9,24 @@
       "weight": 1.0,
       "supplier": {
         "name": "Carbon dioxide, in air",
+        "categories": [
+          "air"
+        ],
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      }
+    },
+    {
+      "value": 100,
+      "weight": 1.0,
+      "supplier": {
+        "name": "Carbon dioxide, in air",
+        "categories": [
+          "air", "low population"
+        ],
         "matrix": "biosphere"
       },
       "consumer": {
