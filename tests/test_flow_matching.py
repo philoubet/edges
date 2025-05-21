@@ -12,31 +12,38 @@ from edges.flow_matching import (
     compute_average_cf,
 )
 
+
 def test_matches_classifications_exact():
-    cf_class = [('cpc', '123')]
-    flow_class = [('cpc', '123')]
+    cf_class = [("cpc", "123")]
+    flow_class = [("cpc", "123")]
     assert matches_classifications(cf_class, flow_class)
+
 
 def test_matches_classifications_partial():
-    cf_class = [('cpc', '123')]
-    flow_class = [('cpc', '123456')]
+    cf_class = [("cpc", "123")]
+    flow_class = [("cpc", "123456")]
     assert matches_classifications(cf_class, flow_class)
 
+
 def test_matches_classifications_no_match():
-    cf_class = [('cpc', '789')]
-    flow_class = [('cpc', '123456')]
+    cf_class = [("cpc", "789")]
+    flow_class = [("cpc", "123456")]
     assert not matches_classifications(cf_class, flow_class)
 
+
 def test_match_operator_equals():
-    assert match_operator('foo', 'foo', 'equals')
+    assert match_operator("foo", "foo", "equals")
+
 
 def test_match_operator_startswith():
-    assert match_operator('foobar', 'foo', 'startswith')
-    assert not match_operator('barfoo', 'foo', 'startswith')
+    assert match_operator("foobar", "foo", "startswith")
+    assert not match_operator("barfoo", "foo", "startswith")
+
 
 def test_match_operator_contains():
-    assert match_operator('foobar', 'oba', 'contains')
-    assert not match_operator('foobar', 'baz', 'contains')
+    assert match_operator("foobar", "oba", "contains")
+    assert not match_operator("foobar", "baz", "contains")
+
 
 def test_normalize_classification_entries():
     raw = [
@@ -45,7 +52,7 @@ def test_normalize_classification_entries():
             "supplier": {
                 "location": "GLO",
                 "matrix": "technosphere",
-                "classifications": {"CPC": ["01", "02"], "ISIC": ["A"]}
+                "classifications": {"CPC": ["01", "02"], "ISIC": ["A"]},
             },
             "consumer": {"matrix": "technosphere"},
             "value": 5,
@@ -55,7 +62,7 @@ def test_normalize_classification_entries():
             "supplier": {
                 "location": "GLO",
                 "matrix": "technosphere",
-                "classifications": (("CPC", ("03",)), ("ISIC", ("B",)))
+                "classifications": (("CPC", ("03",)), ("ISIC", ("B",))),
             },
             "consumer": {"matrix": "technosphere"},
             "value": 8,
@@ -65,7 +72,7 @@ def test_normalize_classification_entries():
             "supplier": {
                 "location": "GLO",
                 "matrix": "technosphere",
-                "classifications": [("CPC", "04"), ("ISIC", "C")]
+                "classifications": [("CPC", "04"), ("ISIC", "C")],
             },
             "consumer": {"matrix": "technosphere"},
             "value": 10,
@@ -134,10 +141,13 @@ def test_normalize_signature_data():
         "location": "CH",
         "classifications": {"cpc": ["123", "456"], "isic": ["789"]},
     }
-    normalized = normalize_signature_data(data.copy(), required_fields={"location", "classifications"})
+    normalized = normalize_signature_data(
+        data.copy(), required_fields={"location", "classifications"}
+    )
     assert isinstance(normalized["classifications"], tuple)
     assert ("cpc", ("123", "456")) in normalized["classifications"]
     assert ("isic", ("789",)) in normalized["classifications"]
+
 
 def test_compute_average_cf_with_any_fallback():
     raw_cfs = [
@@ -171,4 +181,3 @@ def test_compute_average_cf_with_any_fallback():
     assert matched_cf is not None
     assert isinstance(result, str)
     assert "10" in result
-

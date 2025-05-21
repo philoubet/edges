@@ -405,7 +405,7 @@ def safe_eval(expr, parameters, SAFE_GLOBALS=None, scenario_idx: int | str = 0):
 
 
 def safe_eval_cached(
-    expr: str, parameters: dict, scenario_idx: str |int, SAFE_GLOBALS: dict
+    expr: str, parameters: dict, scenario_idx: str | int, SAFE_GLOBALS: dict
 ):
     # Convert parameters into a hashable string key
     key = (
@@ -464,5 +464,3 @@ def get_shares(candidates: tuple):
     if total_weight == 0:
         return list(cand_locs), np.zeros_like(weight_array)
     return list(cand_locs), weight_array / total_weight
-
-

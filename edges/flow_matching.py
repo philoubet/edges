@@ -235,8 +235,6 @@ def build_cf_index(
     return index
 
 
-
-
 @cache
 def cached_match_with_index(flow_to_match_hashable, required_fields_tuple):
     flow_to_match = dict(flow_to_match_hashable)
@@ -410,7 +408,9 @@ def match_with_index(
     return matches
 
 
-def compute_cf_memoized_factory(cf_index, required_supplier_fields, required_consumer_fields, weights, logger):
+def compute_cf_memoized_factory(
+    cf_index, required_supplier_fields, required_consumer_fields, weights, logger
+):
     @lru_cache(maxsize=None)
     def compute_cf(s_key, c_key, supplier_candidates, consumer_candidates):
         return compute_average_cf(
@@ -424,14 +424,12 @@ def compute_cf_memoized_factory(cf_index, required_supplier_fields, required_con
             required_consumer_fields=required_consumer_fields,
             logger=logger,
         )
+
     return compute_cf
 
+
 def normalize_signature_data(info_dict, required_fields):
-    filtered = {
-        k: info_dict[k]
-        for k in required_fields
-        if k in info_dict
-    }
+    filtered = {k: info_dict[k] for k in required_fields if k in info_dict}
 
     # Normalize classifications
     if "classifications" in filtered:
@@ -447,11 +445,18 @@ def normalize_signature_data(info_dict, required_fields):
     return filtered
 
 
-
-def group_edges_by_signature(edge_list, required_supplier_fields, required_consumer_fields, geo, weights):
+def group_edges_by_signature(
+    edge_list, required_supplier_fields, required_consumer_fields, geo, weights
+):
     grouped = defaultdict(list)
 
-    for supplier_idx, consumer_idx, supplier_info, consumer_info, candidate_locs in edge_list:
+    for (
+        supplier_idx,
+        consumer_idx,
+        supplier_info,
+        consumer_info,
+        candidate_locs,
+    ) in edge_list:
         s_filtered = normalize_signature_data(supplier_info, required_supplier_fields)
         c_filtered = normalize_signature_data(consumer_info, required_consumer_fields)
 
@@ -459,8 +464,16 @@ def group_edges_by_signature(edge_list, required_supplier_fields, required_consu
         c_key = make_hashable(c_filtered)
 
         # Determine candidate location grouping key
-        supplier_sub = geo.resolve(supplier_info.get("location"), containing=True) if "location" in required_supplier_fields else []
-        consumer_sub = geo.resolve(consumer_info.get("location"), containing=True) if "location" in required_consumer_fields else []
+        supplier_sub = (
+            geo.resolve(supplier_info.get("location"), containing=True)
+            if "location" in required_supplier_fields
+            else []
+        )
+        consumer_sub = (
+            geo.resolve(consumer_info.get("location"), containing=True)
+            if "location" in required_consumer_fields
+            else []
+        )
 
         loc_key = (
             tuple(sorted(set([g for g in supplier_sub if g in weights]))),
