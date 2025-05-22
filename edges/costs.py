@@ -255,22 +255,40 @@ class CostLCIA(EdgeLCIA):
 
             self.characterization_matrix = self.characterization_matrix.tocsr()
 
-            n = self.characterization_matrix.shape[0]
-            new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format="csr")
-            self.characterization_matrix.setdiag(0)
-            self.characterization_matrix = self.characterization_matrix + new_diag
+            self.post_process_characterization_matrix()
 
-            # reflip the sign of self.technosphere_flow_matrix
-            # Convert to COO format to modify individual entries
-            A_coo = self.technosphere_flow_matrix.tocoo()
+    def post_process_characterization_matrix(self):
+        """
+        Post-process the characterization matrix to ensure that:
+        1. The diagonal is overwritten with the price vector.
+        2. The off-diagonal technosphere flow values are flipped.
+        3. The price vector is added to the characterization matrix
+              wherever the technosphere flow matrix is non-zero.
+        4. The characterization matrix is converted to CSR format.
 
-            # Copy data
-            rows, cols, data = A_coo.row, A_coo.col, A_coo.data.copy()
+        This method is called after the characterization matrix has been
+        generated and the price vector has been built.
+        It modifies the characterization matrix in place.
 
-            # Negate off-diagonal values
-            data[rows != cols] *= -1
+        """
 
-            # Reconstruct and convert back to CSR
-            self.technosphere_flow_matrix = csr_matrix(
-                (data, (rows, cols)), shape=self.technosphere_flow_matrix.shape
-            )
+
+        # Step 1: Overwrite diagonal of characterization matrix with price vector
+        n = self.characterization_matrix.shape[0]
+        new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format="csr")
+        self.characterization_matrix.setdiag(0)
+        self.characterization_matrix = self.characterization_matrix + new_diag
+
+        # Step 2: Flip signs of off-diagonal technosphere flow values
+        A_coo = self.technosphere_flow_matrix.tocoo()
+        rows, cols, data = A_coo.row, A_coo.col, A_coo.data.copy()
+        data[rows != cols] *= -1
+        self.technosphere_flow_matrix = csr_matrix((data, (rows, cols)), shape=A_coo.shape)
+
+        # Step 3: Add price_vector[i] (not j!) to characterization_matrix[i, j]
+        char_lil = self.characterization_matrix.tolil()
+        for i, j in zip(rows, cols):
+            char_lil[i, j] = self.price_vector[i]  # <-- correct direction: add row price
+        self.characterization_matrix = char_lil.tocsr()
+
+        self.characterization_matrix = char_lil.tocsr()
