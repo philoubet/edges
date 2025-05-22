@@ -3,12 +3,14 @@ Module that implements the base class for country-specific life-cycle
 impact assessments, and the AWARE class, which is a subclass of the
 LCIA class.
 """
+
 import numpy as np
 
 from .edgelcia import *
 from scipy import sparse
 from scipy.optimize import linprog
 from scipy.sparse import diags, csr_matrix
+
 
 class CostLCIA(EdgeLCIA):
     """
@@ -64,7 +66,6 @@ class CostLCIA(EdgeLCIA):
             for i in self.technosphere_flows
         }
 
-
     def build_price_vector(self):
         """
         Generate a vector of prices for each (involved) activity in the technosphere matrix.
@@ -83,7 +84,6 @@ class CostLCIA(EdgeLCIA):
                 if position[0] == position[1]:
                     # we take the value of the first one
                     self.price_vector[position[0]] = cf["value"]
-
 
     def infer_missing_costs(self):
         """
@@ -121,7 +121,9 @@ class CostLCIA(EdgeLCIA):
                     cols.append(j)
                     data.append(-T[i, j] / output)
 
-        self.technosphere_matrix_star = sparse.csr_matrix((data, (rows, cols)), shape=T.shape)
+        self.technosphere_matrix_star = sparse.csr_matrix(
+            (data, (rows, cols)), shape=T.shape
+        )
 
         # --- Part 2: Solve LP to infer missing costs ---
         n = self.technosphere_matrix_star.shape[0]
@@ -166,7 +168,9 @@ class CostLCIA(EdgeLCIA):
             self.price_vector = result.x
             print("Inferred missing prices successfully.")
         else:
-            raise RuntimeError("Linear program failed to find a consistent price vector.")
+            raise RuntimeError(
+                "Linear program failed to find a consistent price vector."
+            )
 
     def evaluate_cfs(self, scenario_idx: str | int = 0, scenario=None):
         if self.use_distributions and self.iterations > 1:
@@ -252,7 +256,7 @@ class CostLCIA(EdgeLCIA):
             self.characterization_matrix = self.characterization_matrix.tocsr()
 
             n = self.characterization_matrix.shape[0]
-            new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format='csr')
+            new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format="csr")
             self.characterization_matrix.setdiag(0)
             self.characterization_matrix = self.characterization_matrix + new_diag
 
@@ -267,4 +271,6 @@ class CostLCIA(EdgeLCIA):
             data[rows != cols] *= -1
 
             # Reconstruct and convert back to CSR
-            self.technosphere_flow_matrix = csr_matrix((data, (rows, cols)), shape=self.technosphere_flow_matrix.shape)
+            self.technosphere_flow_matrix = csr_matrix(
+                (data, (rows, cols)), shape=self.technosphere_flow_matrix.shape
+            )

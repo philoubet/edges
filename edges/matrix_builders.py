@@ -17,9 +17,9 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
 
 
 def build_technosphere_edges_matrix(
-        technosphere_matrix: csr_matrix,
-        supply_array: np.ndarray,
-        preserve_diagonal: bool = False,
+    technosphere_matrix: csr_matrix,
+    supply_array: np.ndarray,
+    preserve_diagonal: bool = False,
 ) -> csr_matrix:
     """
     Generate a matrix showing scaled technosphere flows needed for the LCA solution.
@@ -48,5 +48,7 @@ def build_technosphere_edges_matrix(
     scaled_data[is_input] = -data[is_input] * supply_array[cols[is_input]]
     scaled_data[is_output] = data[is_output] * supply_array[cols[is_output]]
 
-    return coo_matrix((scaled_data[is_valid], (rows[is_valid], cols[is_valid])),
-                      shape=technosphere_matrix.shape).tocsr()
+    return coo_matrix(
+        (scaled_data[is_valid], (rows[is_valid], cols[is_valid])),
+        shape=technosphere_matrix.shape,
+    ).tocsr()
