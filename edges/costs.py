@@ -272,7 +272,6 @@ class CostLCIA(EdgeLCIA):
 
         """
 
-
         # Step 1: Overwrite diagonal of characterization matrix with price vector
         n = self.characterization_matrix.shape[0]
         new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format="csr")
@@ -283,12 +282,16 @@ class CostLCIA(EdgeLCIA):
         A_coo = self.technosphere_flow_matrix.tocoo()
         rows, cols, data = A_coo.row, A_coo.col, A_coo.data.copy()
         data[rows != cols] *= -1
-        self.technosphere_flow_matrix = csr_matrix((data, (rows, cols)), shape=A_coo.shape)
+        self.technosphere_flow_matrix = csr_matrix(
+            (data, (rows, cols)), shape=A_coo.shape
+        )
 
         # Step 3: Add price_vector[i] (not j!) to characterization_matrix[i, j]
         char_lil = self.characterization_matrix.tolil()
         for i, j in zip(rows, cols):
-            char_lil[i, j] = self.price_vector[i]  # <-- correct direction: add row price
+            char_lil[i, j] = self.price_vector[
+                i
+            ]  # <-- correct direction: add row price
         self.characterization_matrix = char_lil.tocsr()
 
         self.characterization_matrix = char_lil.tocsr()
