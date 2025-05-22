@@ -28,6 +28,7 @@ requirements:
     - bw2analyzer
     - constructive_geometries
     - prettytable
+    - sparse
 
 
 test:
