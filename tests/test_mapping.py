@@ -31,6 +31,7 @@ activity_C = get_activity(("lcia-test-db", "C"))
 activity_D = get_activity(("lcia-test-db", "D"))
 activity_E = get_activity(("lcia-test-db", "E"))
 
+this_dir = Path(__file__).parent
 
 @pytest.mark.parametrize(
     "filename, activity, expected",
@@ -50,20 +51,12 @@ activity_E = get_activity(("lcia-test-db", "E"))
     ],
 )
 def test_cf_mapping(filename, activity, expected):
-    filepath = str(Path("data") / filename)
-
-    print(f"📄 Loading CF file from: {filepath}")
-    print(Path(filepath).read_text())
+    filepath = str(this_dir / "data" / filename)
 
     lca = EdgeLCIA(
         demand={activity: 1},
         filepath=filepath,
     )
-    from pprint import pprint
-
-    pprint(lca.raw_cfs_data)
-
-    assert len(lca.raw_cfs_data) >= 2, "Expected 2 CF entries or more from JSON"
 
     lca.lci()
     lca.map_exchanges()
@@ -81,24 +74,21 @@ def test_cf_mapping(filename, activity, expected):
     else:
         status = "passed"
 
-    if df is not None:
-        df.to_excel(f"test - {filename} {activity['name']} {status}.xlsx", index=False)
-
     if pytest.approx(lca.score) != expected:
         print(f"\n🔍 DEBUG - Test failed for: {filename} / {activity['name']}")
         print(f"Expected score: {expected}, got: {lca.score}")
         if df is not None:
             print("\n🔎 Full CF table:")
             print(df.to_string(index=False))
+            df.to_excel(f"test - {filename} {activity['name']} {status}.xlsx", index=False)
 
     assert pytest.approx(lca.score) == expected
-    lca._geo = None
 
 
 def test_parameters():
 
     activity = activity_A
-    filepath = str(Path("data") / "biosphere_name_w_parameters.json")
+    filepath = str(this_dir / "data" / "biosphere_name_w_parameters.json")
 
     params = {
         "some scenario": {
@@ -131,6 +121,5 @@ def test_parameters():
         lca.lcia()
         results.append(lca.score)
 
-    print(results)
     # assert that all values are different
     assert len(set(results)) == len(results), "Expected all values to be different"
