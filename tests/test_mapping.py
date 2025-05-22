@@ -33,6 +33,7 @@ activity_E = get_activity(("lcia-test-db", "E"))
 
 this_dir = Path(__file__).parent
 
+
 @pytest.mark.parametrize(
     "filename, activity, expected",
     [
@@ -80,7 +81,9 @@ def test_cf_mapping(filename, activity, expected):
         if df is not None:
             print("\n🔎 Full CF table:")
             print(df.to_string(index=False))
-            df.to_excel(f"test - {filename} {activity['name']} {status}.xlsx", index=False)
+            df.to_excel(
+                f"test - {filename} {activity['name']} {status}.xlsx", index=False
+            )
 
     assert pytest.approx(lca.score) == expected
 
