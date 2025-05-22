@@ -1328,17 +1328,22 @@ class EdgeLCIA:
 
         edges = (
             self.biosphere_edges
-            if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.raw_cfs_data)
+            if all(
+                cf["supplier"].get("matrix") == "biosphere" for cf in self.raw_cfs_data
+            )
             else self.technosphere_edges
         )
 
         print(f"Mapping {len(edges)} exchanges...")
 
-        supplier_index = build_index(self.supplier_lookup, self.required_supplier_fields)
-        consumer_index = build_index(self.consumer_lookup, self.required_consumer_fields)
+        supplier_index = build_index(
+            self.supplier_lookup, self.required_supplier_fields
+        )
+        consumer_index = build_index(
+            self.consumer_lookup, self.required_consumer_fields
+        )
 
         seen_positions = []
-
 
         for i, cf in enumerate(tqdm(self.raw_cfs_data, desc="Mapping exchanges")):
             supplier_criteria = cf["supplier"]
@@ -1348,10 +1353,13 @@ class EdgeLCIA:
             if "classifications" in supplier_criteria:
                 cf_class = supplier_criteria["classifications"]
                 classification_matches = [
-                    idx for idx in self.reversed_supplier_lookup
+                    idx
+                    for idx in self.reversed_supplier_lookup
                     if matches_classifications(
                         cf_class,
-                        dict(self.reversed_supplier_lookup[idx]).get("classifications", []),
+                        dict(self.reversed_supplier_lookup[idx]).get(
+                            "classifications", []
+                        ),
                     )
                 ]
             else:
@@ -1368,23 +1376,41 @@ class EdgeLCIA:
 
             nonclass_matches = cached_match_with_index(
                 make_hashable(nonclass_criteria),
-                tuple(sorted({k for k in self.required_supplier_fields if k!= "classifications"})),
+                tuple(
+                    sorted(
+                        {
+                            k
+                            for k in self.required_supplier_fields
+                            if k != "classifications"
+                        }
+                    )
+                ),
             )
 
             # Step 3: Combine
             if classification_matches is not None:
-                supplier_candidates = list(set(classification_matches) & set(nonclass_matches))
+                supplier_candidates = list(
+                    set(classification_matches) & set(nonclass_matches)
+                )
             else:
                 supplier_candidates = nonclass_matches
 
             # --- Consumer matching ---
-            if not any(k for k in consumer_criteria if k not in {"matrix", "weight", "position"}):
+            if not any(
+                k
+                for k in consumer_criteria
+                if k not in {"matrix", "weight", "position"}
+            ):
                 consumer_candidates = list(self.consumer_lookup.values())
-                consumer_candidates = [pos for sublist in consumer_candidates for pos in sublist]
+                consumer_candidates = [
+                    pos for sublist in consumer_candidates for pos in sublist
+                ]
             else:
                 cached_match_with_index.index = consumer_index
                 cached_match_with_index.lookup_mapping = self.consumer_lookup
-                cached_match_with_index.reversed_lookup = self.position_to_technosphere_flows_lookup
+                cached_match_with_index.reversed_lookup = (
+                    self.position_to_technosphere_flows_lookup
+                )
                 consumer_candidates = cached_match_with_index(
                     make_hashable(consumer_criteria),
                     tuple(sorted(self.required_consumer_fields)),

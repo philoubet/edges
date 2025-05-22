@@ -86,7 +86,6 @@ class CostLCIA(EdgeLCIA):
                     # we take the value of the first one
                     self.price_vector[position[0]] = cf["value"]
 
-
     def infer_missing_costs(self):
         """
         Efficiently infer missing prices in a large technosphere matrix.
@@ -158,12 +157,21 @@ class CostLCIA(EdgeLCIA):
         print("  Max:", np.max(original_prices))
         print("  NaNs:", np.isnan(original_prices).sum())
         print("  Zeros:", np.count_nonzero(original_prices == 0))
-        print("  Anchored prices:", sum(lb == ub and lb is not None for lb, ub in bounds), "/", n)
+        print(
+            "  Anchored prices:",
+            sum(lb == ub and lb is not None for lb, ub in bounds),
+            "/",
+            n,
+        )
 
         print("A_ub diagnostics:")
         print("  Max abs value:", np.max(np.abs(A_ub)))
-        print("  Non-zeros per row (min/max):", np.min(np.count_nonzero(A_ub, axis=1)), "/",
-              np.max(np.count_nonzero(A_ub, axis=1)))
+        print(
+            "  Non-zeros per row (min/max):",
+            np.min(np.count_nonzero(A_ub, axis=1)),
+            "/",
+            np.max(np.count_nonzero(A_ub, axis=1)),
+        )
         print("  Total constraints (rows):", A_ub.shape[0])
         print("  Total variables (columns):", A_ub.shape[1])
 
@@ -175,8 +183,12 @@ class CostLCIA(EdgeLCIA):
 
         # --- Solve LP ---
         result = linprog(
-            c, A_ub=A_ub, b_ub=b_ub, bounds=bounds,
-            method="highs", options={"presolve": True}
+            c,
+            A_ub=A_ub,
+            b_ub=b_ub,
+            bounds=bounds,
+            method="highs",
+            options={"presolve": True},
         )
 
         if result.success:
@@ -193,7 +205,9 @@ class CostLCIA(EdgeLCIA):
             print("Message:", result.message)
             print("Number of variables:", len(c))
             print("Number of constraints:", len(b_ub))
-            raise RuntimeError("Linear program failed to find a consistent price vector.")
+            raise RuntimeError(
+                "Linear program failed to find a consistent price vector."
+            )
 
     def infer_missing_costs_highspy(self):
         """
@@ -249,20 +263,22 @@ class CostLCIA(EdgeLCIA):
         model = Highs()
         model.setOptionValue("output_flag", False)
 
-        model.passModel({
-            "num_col": n,
-            "num_row": len(b_ub),
-            "sense": "min",
-            "col_cost": np.ones(n),
-            "col_bounds": bounds,
-            "row_bounds": [(None, b) for b in b_ub],
-            "a_matrix": {
-                "format": "coo",
-                "start": None,
-                "index": list(zip(A_ub_rows, A_ub_cols)),
-                "value": A_ub_data
+        model.passModel(
+            {
+                "num_col": n,
+                "num_row": len(b_ub),
+                "sense": "min",
+                "col_cost": np.ones(n),
+                "col_bounds": bounds,
+                "row_bounds": [(None, b) for b in b_ub],
+                "a_matrix": {
+                    "format": "coo",
+                    "start": None,
+                    "index": list(zip(A_ub_rows, A_ub_cols)),
+                    "value": A_ub_data,
+                },
             }
-        })
+        )
 
         model.run()
         status = model.getModelStatus()
@@ -374,7 +390,6 @@ class CostLCIA(EdgeLCIA):
 
         """
 
-
         # Step 1: Overwrite diagonal of characterization matrix with price vector
         n = self.characterization_matrix.shape[0]
         new_diag = diags(self.price_vector, offsets=0, shape=(n, n), format="csr")
@@ -385,7 +400,9 @@ class CostLCIA(EdgeLCIA):
         A_coo = self.technosphere_flow_matrix.tocoo()
         rows, cols, data = A_coo.row, A_coo.col, A_coo.data.copy()
         data[rows != cols] *= -1
-        self.technosphere_flow_matrix = csr_matrix((data, (rows, cols)), shape=A_coo.shape)
+        self.technosphere_flow_matrix = csr_matrix(
+            (data, (rows, cols)), shape=A_coo.shape
+        )
 
         # Step 3: Add price_vector[i] (not j!) to characterization_matrix[i, j]
         # Convert technosphere flow matrix to COO format for indexing
@@ -407,7 +424,6 @@ class CostLCIA(EdgeLCIA):
 
         # Update the characterization matrix (add only to empty entries)
         self.characterization_matrix = (C + delta_matrix).tocsr()
-
 
     def generate_cf_table(self) -> pd.DataFrame:
         """

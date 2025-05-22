@@ -159,7 +159,8 @@ def matches_classifications(cf_classifications, dataset_classifications):
 
     for scheme, code in dataset_codes:
         if any(
-            code.startswith(cf_code) and scheme.lower().strip() == cf_scheme.lower().strip()
+            code.startswith(cf_code)
+            and scheme.lower().strip() == cf_scheme.lower().strip()
             for cf_scheme, cf_code in cf_classifications
         ):
             return True
@@ -443,16 +444,12 @@ def normalize_signature_data(info_dict, required_fields):
         if isinstance(c, dict):
             # From dict of lists -> tuple of (scheme, code)
             filtered["classifications"] = tuple(
-                (scheme, code)
-                for scheme, codes in c.items()
-                for code in codes
+                (scheme, code) for scheme, codes in c.items() for code in codes
             )
         elif isinstance(c, list):
             # Ensure it's a list of 2-tuples
             filtered["classifications"] = tuple(
-                (scheme, code)
-                for scheme, code in c
-                if isinstance(scheme, str)
+                (scheme, code) for scheme, code in c if isinstance(scheme, str)
             )
         elif isinstance(c, tuple):
             # Possibly already normalized — validate structure
@@ -470,7 +467,6 @@ def normalize_signature_data(info_dict, required_fields):
                 filtered["classifications"] = tuple(new_classifications)
 
     return filtered
-
 
 
 def group_edges_by_signature(
