@@ -17,25 +17,36 @@ def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
 
 
 def build_technosphere_edges_matrix(
-    technosphere_matrix: csr_matrix, supply_array: np.ndarray
-):
+        technosphere_matrix: csr_matrix,
+        supply_array: np.ndarray,
+        preserve_diagonal: bool = False,
+) -> csr_matrix:
     """
-    Generate a matrix with the technosphere flows.
-    """
+    Generate a matrix showing scaled technosphere flows needed for the LCA solution.
 
-    # Convert CSR to COO format for easier manipulation
+    Args:
+        technosphere_matrix: Sparse CSR matrix of the technosphere.
+        supply_array: The solved supply array from LCA.
+        preserve_diagonal: If True, includes outputs (diagonal) as positive values.
+                           If False, excludes diagonal (outputs).
+
+    Returns:
+        csr_matrix: Matrix of scaled technosphere flows.
+    """
     coo = technosphere_matrix.tocoo()
 
-    # Extract negative values
-    rows, cols, data = coo.row, coo.col, coo.data
-    negative_data = -data * (data < 0)  # Keep only negatives and make them positive
+    rows = coo.row
+    cols = coo.col
+    data = coo.data
 
-    # Scale columns by supply_array
-    scaled_data = negative_data * supply_array[cols]
+    is_diag = rows == cols
+    is_input = data < 0
+    is_output = is_diag & preserve_diagonal
+    is_valid = is_input | is_output
 
-    # Create the flow matrix in sparse format
-    flow_matrix_sparse = coo_matrix(
-        (scaled_data, (rows, cols)), shape=technosphere_matrix.shape
-    )
+    scaled_data = np.zeros_like(data)
+    scaled_data[is_input] = -data[is_input] * supply_array[cols[is_input]]
+    scaled_data[is_output] = data[is_output] * supply_array[cols[is_output]]
 
-    return flow_matrix_sparse.tocsr()
+    return coo_matrix((scaled_data[is_valid], (rows[is_valid], cols[is_valid])),
+                      shape=technosphere_matrix.shape).tocsr()

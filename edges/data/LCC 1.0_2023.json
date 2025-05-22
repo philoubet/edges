@@ -1,4 +1,8 @@
-[
+{
+  "name": "Life Cycle Costing LCIA method based on BACI data",
+  "unit": "USD",
+  "version": "1.0.0",
+  "exchanges": [
   {
     "supplier":{
       "classifications":{
@@ -14,9 +18,7 @@
     "consumer":{
       "matrix":"technosphere"
     },
-    "value":[
-      4.673
-    ]
+    "value":4.673
   },
   {
     "supplier":{
@@ -131126,3 +131128,4 @@
     }
   }
 ]
+}

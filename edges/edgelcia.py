@@ -423,18 +423,18 @@ class EdgeLCIA:
                     }
                 )
 
-                matrix_type = (
-                    "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
-                )
-                self.characterization_matrix = initialize_lcia_matrix(
-                    self.lca, matrix_type=matrix_type
-                )
+            matrix_type = (
+                "biosphere" if len(self.biosphere_edges) > 0 else "technosphere"
+            )
+            self.characterization_matrix = initialize_lcia_matrix(
+                self.lca, matrix_type=matrix_type
+            )
 
-                for cf in self.scenario_cfs:
-                    for i, j in cf["positions"]:
-                        self.characterization_matrix[i, j] = cf["value"]
+            for cf in self.scenario_cfs:
+                for i, j in cf["positions"]:
+                    self.characterization_matrix[i, j] = cf["value"]
 
-                self.characterization_matrix = self.characterization_matrix.tocsr()
+            self.characterization_matrix = self.characterization_matrix.tocsr()
 
     def update_unprocessed_edges(self):
         self.processed_biosphere_edges = {
