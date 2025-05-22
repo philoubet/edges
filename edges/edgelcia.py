@@ -1328,64 +1328,63 @@ class EdgeLCIA:
 
         edges = (
             self.biosphere_edges
-            if all(
-                cf["supplier"].get("matrix") == "biosphere" for cf in self.raw_cfs_data
-            )
+            if all(cf["supplier"].get("matrix") == "biosphere" for cf in self.raw_cfs_data)
             else self.technosphere_edges
         )
 
-        supplier_index = build_index(
-            self.supplier_lookup, self.required_supplier_fields
-        )
-        consumer_index = build_index(
-            self.consumer_lookup, self.required_consumer_fields
-        )
+        print(f"Mapping {len(edges)} exchanges...")
+
+        supplier_index = build_index(self.supplier_lookup, self.required_supplier_fields)
+        consumer_index = build_index(self.consumer_lookup, self.required_consumer_fields)
 
         seen_positions = []
 
-        for cf in tqdm(self.raw_cfs_data):
+
+        for i, cf in enumerate(tqdm(self.raw_cfs_data, desc="Mapping exchanges")):
             supplier_criteria = cf["supplier"]
             consumer_criteria = cf["consumer"]
 
-            # --- Supplier matching ---
+            # Step 1: Classifications filter
             if "classifications" in supplier_criteria:
-                # Do manual matching for hierarchical classifications
                 cf_class = supplier_criteria["classifications"]
-                supplier_candidates = [
-                    idx
-                    for idx in self.reversed_supplier_lookup
+                classification_matches = [
+                    idx for idx in self.reversed_supplier_lookup
                     if matches_classifications(
                         cf_class,
-                        dict(self.reversed_supplier_lookup[idx]).get(
-                            "classifications", []
-                        ),
+                        dict(self.reversed_supplier_lookup[idx]).get("classifications", []),
                     )
                 ]
             else:
-                cached_match_with_index.index = supplier_index
-                cached_match_with_index.lookup_mapping = self.supplier_lookup
-                cached_match_with_index.reversed_lookup = self.reversed_supplier_lookup
-                supplier_candidates = cached_match_with_index(
-                    make_hashable(supplier_criteria),
-                    tuple(sorted(self.required_supplier_fields)),
-                )
+                classification_matches = None
+
+            # Step 2: Other filters (location, name, etc.)
+            cached_match_with_index.index = supplier_index
+            cached_match_with_index.lookup_mapping = self.supplier_lookup
+            cached_match_with_index.reversed_lookup = self.reversed_supplier_lookup
+
+            nonclass_criteria = {
+                k: v for k, v in supplier_criteria.items() if k != "classifications"
+            }
+
+            nonclass_matches = cached_match_with_index(
+                make_hashable(nonclass_criteria),
+                tuple(sorted({k for k in self.required_supplier_fields if k!= "classifications"})),
+            )
+
+            # Step 3: Combine
+            if classification_matches is not None:
+                supplier_candidates = list(set(classification_matches) & set(nonclass_matches))
+            else:
+                supplier_candidates = nonclass_matches
 
             # --- Consumer matching ---
-            if not any(
-                k
-                for k in consumer_criteria
-                if k not in {"matrix", "weight", "position"}
-            ):
+            if not any(k for k in consumer_criteria if k not in {"matrix", "weight", "position"}):
                 consumer_candidates = list(self.consumer_lookup.values())
-                consumer_candidates = [
-                    pos for sublist in consumer_candidates for pos in sublist
-                ]
+                consumer_candidates = [pos for sublist in consumer_candidates for pos in sublist]
             else:
                 cached_match_with_index.index = consumer_index
                 cached_match_with_index.lookup_mapping = self.consumer_lookup
-                cached_match_with_index.reversed_lookup = (
-                    self.position_to_technosphere_flows_lookup
-                )
+                cached_match_with_index.reversed_lookup = self.position_to_technosphere_flows_lookup
                 consumer_candidates = cached_match_with_index(
                     make_hashable(consumer_criteria),
                     tuple(sorted(self.required_consumer_fields)),
@@ -1410,7 +1409,6 @@ class EdgeLCIA:
                     "value": cf["value"],
                     "uncertainty": cf.get("uncertainty"),
                 }
-
                 self.cfs_mapping.append(cf_entry)
                 seen_positions.extend(positions)
 

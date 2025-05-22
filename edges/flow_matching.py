@@ -153,10 +153,13 @@ def matches_classifications(cf_classifications, dataset_classifications):
                 (scheme, code) for scheme, codes in cf_classifications for code in codes
             ]
 
-    for scheme, value in dataset_classifications:
-        code = value.split(":")[0].strip()
+    dataset_codes = [
+        (scheme, code.split(":")[0].strip()) for scheme, code in dataset_classifications
+    ]
+
+    for scheme, code in dataset_codes:
         if any(
-            code.startswith(cf_code) and scheme == cf_scheme
+            code.startswith(cf_code) and scheme.lower().strip() == cf_scheme.lower().strip()
             for cf_scheme, cf_code in cf_classifications
         ):
             return True
@@ -438,14 +441,36 @@ def normalize_signature_data(info_dict, required_fields):
     if "classifications" in filtered:
         c = filtered["classifications"]
         if isinstance(c, dict):
+            # From dict of lists -> tuple of (scheme, code)
             filtered["classifications"] = tuple(
-                (scheme, tuple(sorted(map(str, codes))))
-                for scheme, codes in sorted(c.items())
+                (scheme, code)
+                for scheme, codes in c.items()
+                for code in codes
             )
         elif isinstance(c, list):
-            filtered["classifications"] = tuple(sorted(map(str, c)))
+            # Ensure it's a list of 2-tuples
+            filtered["classifications"] = tuple(
+                (scheme, code)
+                for scheme, code in c
+                if isinstance(scheme, str)
+            )
+        elif isinstance(c, tuple):
+            # Possibly already normalized — validate structure
+            if all(isinstance(e, tuple) and len(e) == 2 for e in c):
+                filtered["classifications"] = c
+            else:
+                # Convert from legacy format
+                new_classifications = []
+                for scheme, maybe_codes in c:
+                    if isinstance(maybe_codes, (tuple, list)):
+                        for code in maybe_codes:
+                            new_classifications.append((scheme, code))
+                    else:
+                        new_classifications.append((scheme, maybe_codes))
+                filtered["classifications"] = tuple(new_classifications)
 
     return filtered
+
 
 
 def group_edges_by_signature(
