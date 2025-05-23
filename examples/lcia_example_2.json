@@ -1,38 +1,45 @@
-[
-  {
-    "supplier": {
-      "name": "Carbon dioxide",
-      "operator": "startswith",
-      "matrix": "biosphere"
+{
+  "name": "Example LCIA Method",
+  "version": "1.0",
+  "description": "Example LCIA method for greenhouse gas emissions",
+  "unit": "kg CO2e",
+  "exchanges": [
+    {
+      "supplier": {
+        "name": "Carbon dioxide",
+        "operator": "startswith",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "CH"
+      },
+      "value": 1.0
     },
-    "consumer": {
-      "matrix": "technosphere",
-      "location": "CH"
+    {
+      "supplier": {
+        "name": "Carbon dioxide",
+        "operator": "startswith",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "FR"
+      },
+      "value": 2.0
     },
-    "value": 1.0
-  },
-  {
-    "supplier": {
-      "name": "Carbon dioxide",
-      "operator": "startswith",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "location": "FR"
-    },
-    "value": 2.0
-  },
-  {
-    "supplier": {
-      "name": "Carbon dioxide",
-      "operator": "startswith",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "location": "RER"
-    },
-    "value": 3.0
-  }
-]
+    {
+      "supplier": {
+        "name": "Carbon dioxide",
+        "operator": "startswith",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      },
+      "value": 3.0
+    }
+  ]
+}
+

@@ -3,22 +3,17 @@ Utility functions for the LCIA methods implementation.
 """
 
 import os
-from collections import defaultdict
 import logging
 
 import yaml
-from bw2calc import LCA
-from scipy.sparse import lil_matrix
 import numpy as np
 
-from functools import reduce
+from functools import reduce, cache
 import operator
-from functools import lru_cache
 import hashlib
 import json
 
 from bw2data import __version__ as bw2data_version
-
 
 if isinstance(bw2data_version, str):
     bw2data_version = tuple(map(int, bw2data_version.split(".")))
@@ -111,6 +106,7 @@ def format_data(data: dict, weight: str) -> [list, dict]:
     """
     Format the data for the LCIA method.
     :param data: The data for the LCIA method.
+    :param weight: The type of weight to include.
     :return: The formatted data for the LCIA method.
     """
 
@@ -162,26 +158,13 @@ def add_population_and_gdp_data(data: list, weight: str) -> list:
 
     # add to the data dictionary
     for cf in data:
-        for category in ["supplier", "consumer"]:
+        for category in ["consumer", "supplier"]:
             if "location" in cf[category]:
-                if "weight" not in cf[category]:
+                if "weight" not in cf:
                     k = cf[category]["location"]
-                    cf[category]["weight"] = weighting_data.get(k, 0)
+                    cf["weight"] = weighting_data.get(k, 0)
 
     return data
-
-
-def initialize_lcia_matrix(lca: LCA, matrix_type="biosphere") -> lil_matrix:
-    """
-    Initialize the LCIA matrix. It is a sparse matrix with the
-    dimensions of the `inventory` matrix of the LCA object.
-    :param lca: The LCA object.
-    :param matrix_type: The type of the matrix.
-    :return: An empty LCIA matrix with the dimensions of the `inventory` matrix.
-    """
-    if matrix_type == "biosphere":
-        return lil_matrix(lca.inventory.shape)
-    return lil_matrix(lca.technosphere_matrix.shape)
 
 
 def normalize_flow(flow):
@@ -277,43 +260,6 @@ def get_flow_matrix_positions(mapping: dict) -> list:
             }
         )
     return result
-
-
-def preprocess_cfs(cf_list, by="consumer"):
-    """
-    Group CFs by location from either 'consumer', 'supplier', or both.
-
-    :param cf_list: List of characterization factors (CFs)
-    :param by: One of 'consumer', 'supplier', or 'both'
-    :return: defaultdict of location -> list of CFs
-    """
-    assert by in {
-        "consumer",
-        "supplier",
-        "both",
-    }, "'by' must be 'consumer', 'supplier', or 'both'"
-
-    lookup = defaultdict(list)
-
-    for cf in cf_list:
-        consumer_loc = cf.get("consumer", {}).get("location")
-        supplier_loc = cf.get("supplier", {}).get("location")
-
-        if by == "consumer":
-            if consumer_loc:
-                lookup[consumer_loc].append(cf)
-
-        elif by == "supplier":
-            if supplier_loc:
-                lookup[supplier_loc].append(cf)
-
-        elif by == "both":
-            if consumer_loc:
-                lookup[consumer_loc].append(cf)
-            elif supplier_loc:
-                lookup[supplier_loc].append(cf)
-
-    return lookup
 
 
 def check_database_references(cfs: list, tech_flows: list, bio_flows: list) -> list:
@@ -421,11 +367,21 @@ def load_missing_geographies():
         return yaml.safe_load(f)
 
 
-def get_str(x):
-    return x if isinstance(x, str) else x[-1]
+def get_str(loc):
+    if isinstance(loc, tuple):
+        return loc[1]
+    return str(loc)
 
 
-def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
+def safe_eval(expr, parameters, SAFE_GLOBALS=None, scenario_idx: int | str = 0):
+    """
+    Evaluate a mathematical expression safely.
+    :param expr: The expression to evaluate.
+    :param parameters: A dictionary of parameters to use in the evaluation.
+    :param SAFE_GLOBALS: A dictionary of global variables to use in the evaluation.
+    :param scenario_idx: The index of the scenario to use in the evaluation.
+    :return: The result of the evaluation.
+    """
     if isinstance(expr, (int, float)):
         return float(expr)  # directly return numeric values
 
@@ -449,7 +405,7 @@ def safe_eval(expr, parameters, SAFE_GLOBALS, scenario_idx=0):
 
 
 def safe_eval_cached(
-    expr: str, parameters: dict, scenario_idx: str, SAFE_GLOBALS: dict
+    expr: str, parameters: dict, scenario_idx: str | int, SAFE_GLOBALS: dict
 ):
     # Convert parameters into a hashable string key
     key = (
@@ -481,3 +437,30 @@ def validate_parameter_lengths(parameters):
         raise ValueError(f"Inconsistent lengths in parameter arrays: {lengths}")
 
     return lengths.pop()
+
+
+def make_hashable(flow_to_match):
+    def convert(value):
+        if isinstance(value, list):
+            return tuple(value)
+        elif isinstance(value, dict):
+            return tuple(sorted((k, convert(v)) for k, v in value.items()))
+        return value
+
+    return tuple(sorted((k, convert(v)) for k, v in flow_to_match.items()))
+
+
+@cache
+def get_shares(candidates: tuple):
+    """
+    Get the shares of each candidate location based on weights.
+    """
+    if not candidates:
+        return [], np.array([])
+
+    cand_locs, weights = zip(*candidates)
+    weight_array = np.array(weights, dtype=float)
+    total_weight = weight_array.sum()
+    if total_weight == 0:
+        return list(cand_locs), np.zeros_like(weight_array)
+    return list(cand_locs), weight_array / total_weight

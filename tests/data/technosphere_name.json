@@ -1,0 +1,30 @@
+{
+  "name": "Test LCIA Method",
+  "version": "1.0",
+  "description": "Test for technosphere_name.json",
+  "unit": "kg",
+  "exchanges": [
+    {
+      "value": 100,
+      "weight": 1.0,
+      "supplier": {
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "RER"
+      }
+    },
+    {
+      "value": 200,
+      "weight": 1.0,
+      "supplier": {
+        "matrix": "technosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "location": "GLO"
+      }
+    }
+  ]
+}

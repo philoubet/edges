@@ -1,38 +1,44 @@
-[
-  {
-    "supplier": {
-      "name": "Carbon dioxide",
-      "operator": "startswith",
-      "matrix": "biosphere"
+{
+  "name": "Example LCIA Method",
+    "version": "1.0",
+    "description": "Example LCIA method for greenhouse gas emissions",
+    "unit": "kg CO2e",
+  "exchanges": [
+    {
+      "supplier": {
+        "name": "Carbon dioxide",
+        "operator": "startswith",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "type": "process"
+      },
+      "value": 1.0
     },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
+    {
+      "supplier": {
+        "name": "Methane, fossil",
+        "operator": "contains",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "type": "process"
+      },
+      "value": 28.0
     },
-    "value": 1.0
-  },
-  {
-    "supplier": {
-      "name": "Methane, fossil",
-      "operator": "contains",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
-    },
-    "value": 28.0
-  },
-  {
-    "supplier": {
-      "name": "Dinitrogen monoxide",
-      "operator": "equals",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
-    },
-    "value": 265.0
-  }
-]
+    {
+      "supplier": {
+        "name": "Dinitrogen monoxide",
+        "operator": "equals",
+        "matrix": "biosphere"
+      },
+      "consumer": {
+        "matrix": "technosphere",
+        "type": "process"
+      },
+      "value": 265.0
+    }
+  ]
+}

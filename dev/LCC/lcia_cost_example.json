@@ -1,0 +1,63 @@
+{
+  "name": "Life Cycle Costing LCIA method based on BACI data",
+  "unit": "USD",
+  "version": "1.0.0",
+  "exchanges": [
+      {
+        "supplier":{
+            "classifications":{
+            "CPC":[
+              "311"
+            ]
+          },
+          "matrix": "technosphere"
+        },
+        "consumer":{
+          "matrix": "technosphere"
+        },
+        "value":5.0
+      },
+      {
+      "supplier":{
+        "classifications":{
+          "CPC":[
+            "3120"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer":{
+        "matrix": "technosphere"
+      },
+      "value": 1.0
+    },
+    {
+      "supplier":{
+        "classifications":{
+          "CPC":[
+            "31450"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer":{
+        "matrix": "technosphere"
+      },
+      "value":25.0
+    },
+    {
+      "supplier":{
+        "classifications":{
+          "CPC":[
+            "94339"
+          ]
+        },
+        "matrix": "technosphere"
+      },
+      "consumer":{
+        "matrix": "technosphere"
+      },
+      "value": -2.0
+    }
+  ]
+}
