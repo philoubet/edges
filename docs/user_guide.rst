@@ -194,7 +194,7 @@ you can get statistics:
         demand={act: 1},
         method=("AWARE 2.0", "Country", "all", "yearly"),
         use_distributions=True,
-        iterations=10000
+        iterations=10_000
     )
 
     lcia.lci()
@@ -203,11 +203,24 @@ you can get statistics:
     lcia.map_dynamic_locations()
     lcia.map_contained_locations()
     lcia.map_remaining_locations_to_global()
-    lcia.evaluate_cfs(n=1000)  # Monte Carlo with 1000 draws
+    lcia.evaluate_cfs()
     lcia.lcia()
-    print(lcia.statistics())
+
+    print(lcia.score.mean())
+
+    #plot histogram of results distirbution
+    import matplitlib.pyplot as plt
+    plt.hist(lcia.score, bins=100)
+
+    # get dataframe with statistics
+    df = lcia.generate_cf_table()
+
 
 ---
+
+To know more on how uncertainty works in `edges`, see:
+
+- examples/uncertainty.ipynb
 
 Working with Technosphere CFs (e.g., GeoPolRisk)
 ------------------------------------------------
@@ -220,7 +233,11 @@ Working with Technosphere CFs (e.g., GeoPolRisk)
     bw2data.project.set_current("some project")
     act = bw2data.Database("some db").random()
 
-    lcia = EdgeLCIA(method="GeoPolRisk_2024.json")
+    lcia = EdgeLCIA(
+        demand={act:1},
+        method=("GeoPolRisk", "paired", "2024")
+    )
+
     lcia.lci()
     lcia.map_exchanges()
     lcia.map_aggregate_locations()

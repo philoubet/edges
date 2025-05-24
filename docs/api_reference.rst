@@ -18,4 +18,4 @@ The `CostLCIA` class extends `EdgeLCIA` to perform life cycle costing.
     :members: CostLCIA
     :undoc-members:
     :show-inheritance:
-"""
+
