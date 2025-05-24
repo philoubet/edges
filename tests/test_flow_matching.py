@@ -147,7 +147,7 @@ def test_normalize_signature_data():
     assert isinstance(normalized["classifications"], tuple)
     assert ("cpc", "123") in normalized["classifications"]
     assert ("cpc", "456") in normalized["classifications"]
-    assert ("isic", ("789",)) in normalized["classifications"]
+    assert ("isic", "789") in normalized["classifications"]
 
 
 def test_compute_average_cf_with_any_fallback():
