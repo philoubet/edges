@@ -30,6 +30,24 @@ class CostLCIA(EdgeLCIA):
         random_seed: Optional[int] = None,
         iterations: Optional[int] = 100,
     ):
+        """
+        Initialize a `CostLCIA` object for life cycle costing using the edges framework.
+
+        This class inherits from `EdgeLCIA` but applies cost factors instead of environmental CFs.
+
+        Parameters
+        ----------
+        cost_key : str, optional
+            The key identifying the cost entry in the method file to be used (e.g., "USD_2020").
+        default_cost : float, optional
+            Default cost value to assign when a match is not found or price data is missing.
+        *args, **kwargs :
+            Passed through to the `EdgeLCIA` constructor (e.g., demand, method, parameters, etc.)
+
+        Notes
+        -----
+        This class supports price-based LCC modeling using regionalized, symbolic, or defaulted cost data.
+        """
         super().__init__(
             demand=demand,
             method=method,
@@ -45,6 +63,15 @@ class CostLCIA(EdgeLCIA):
         self.logger.info(f"Initialized CostLCIA with method {self.method}")
 
     def lci(self) -> None:
+        """
+        Perform the life cycle inventory (LCI) phase for cost-based assessment.
+
+        This overrides or extends the base `EdgeLCIA.lci()` to focus on price and cost-related flows.
+
+        It identifies relevant technosphere and biosphere exchanges for which cost data will be applied.
+
+        Must be called before `build_price_vector()` or `evaluate_cfs()`.
+        """
 
         self.lca.lci()
 
@@ -69,8 +96,25 @@ class CostLCIA(EdgeLCIA):
 
     def build_price_vector(self):
         """
-        Generate a vector of prices for each (involved) activity in the technosphere matrix.
+        Construct the vector of prices (or costs) aligned with the inventory exchanges.
+
+        This vector maps each exchange (technosphere or biosphere) to a cost value, based on:
+        - Explicit values in the method file
+        - Symbolic expressions using parameters
+        - Defaults when no match is found
+
+        Behavior
+        --------
+        - Uses the `cost_key` specified in the method to extract cost values.
+        - Supports symbolic cost expressions resolved via parameters or scenarios.
+        - Stores result in the internal `characterization_matrix`.
+
+        Notes
+        -----
+        - Must be called after `lci()` and `map_exchanges()`.
+        - If cost distributions are defined, use `evaluate_cfs()` with `use_distributions=True`.
         """
+
         print("Build price vector")
 
         self.price_vector = np.zeros_like(self.lca.supply_array)
@@ -88,8 +132,22 @@ class CostLCIA(EdgeLCIA):
 
     def infer_missing_costs(self):
         """
-        Efficiently infer missing prices in a large technosphere matrix.
+        Fill in missing costs for exchanges that lack an assigned price.
+
+        This method is useful for achieving full coverage in the cost matrix,
+        especially when the method file is incomplete or only partially matches the inventory.
+
+        Parameters
+        ----------
+        fallback_value : float
+            The default cost to apply to unmatched exchanges.
+
+        Notes
+        -----
+        - This complements `build_price_vector()` by ensuring no exchange is left unpriced.
+        - Works only for technosphere flows.
         """
+
         print("Inferring missing costs in the technosphere matrix...")
 
         # --- Part 1: Normalize technosphere matrix to build A* ---
@@ -211,11 +269,22 @@ class CostLCIA(EdgeLCIA):
 
     def infer_missing_costs_highspy(self):
         """
-        Efficient inference of missing prices using HiGHS directly for large sparse technosphere matrices.
-        :param T: Sparse CSC technosphere matrix.
-        :param price_vector: Initial price vector with some fixed entries.
-        :return: Updated price vector with inferred values.
+        Infer missing costs using the HighSPy logic for structured economic data.
+
+        This method is specific to applications where costs can be inferred from structured
+        product classifications (e.g., CPC, HS) or external statistical sources.
+
+        Behavior
+        --------
+        - Applies heuristics or classification-based rules to assign prices when direct matches are absent.
+        - Typically used in conjunction with structured trade/economic datasets (e.g., BACI, World Bank, etc.)
+
+        Notes
+        -----
+        - This method assumes the inventory and/or CFs contain classifications that can be used for inference.
+        - Supports a fallback pricing strategy that complements `build_price_vector()` and `infer_missing_costs()`.
         """
+
         print("Inferring missing costs using HiGHS...")
 
         T = self.lca.technosphere_matrix.tocsc()
@@ -291,6 +360,28 @@ class CostLCIA(EdgeLCIA):
             raise RuntimeError(f"HiGHS failed: status {status}")
 
     def evaluate_cfs(self, scenario_idx: str | int = 0, scenario=None):
+        """
+        Evaluate and apply cost values for each matched exchange.
+
+        This method overrides or extends the standard `EdgeLCIA.evaluate_cfs()` to work with cost values.
+        It supports:
+        - Direct cost values (floats)
+        - Symbolic expressions involving scenario-dependent parameters
+        - Distributions for uncertainty propagation
+
+        Parameters
+        ----------
+        scenario_idx : str or int, optional
+            The time or scenario index (e.g., year or version), used to select parameter values.
+        scenario : str, optional
+            Name of the scenario to evaluate (overrides the default from init).
+
+        Notes
+        -----
+        - The resulting values populate the `characterization_matrix`, used in cost impact calculations.
+        - Can be used to build scenario-based or dynamic LCC models.
+        """
+
         if self.use_distributions and self.iterations > 1:
             coords_i, coords_j, coords_k = [], [], []
             data = []
@@ -336,7 +427,7 @@ class CostLCIA(EdgeLCIA):
                     if len(self.parameters) > 0:
                         scenario_name = list(self.parameters.keys())[0]
 
-            resolved_params = self.resolve_parameters_for_scenario(
+            resolved_params = self._resolve_parameters_for_scenario(
                 scenario_idx, scenario_name
             )
 
@@ -373,9 +464,9 @@ class CostLCIA(EdgeLCIA):
 
             self.characterization_matrix = self.characterization_matrix.tocsr()
 
-            self.post_process_characterization_matrix()
+            self._post_process_characterization_matrix()
 
-    def post_process_characterization_matrix(self):
+    def _post_process_characterization_matrix(self):
         """
         Post-process the characterization matrix to ensure that:
         1. The diagonal is overwritten with the price vector.

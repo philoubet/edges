@@ -468,6 +468,39 @@ def normalize_signature_data(info_dict, required_fields):
 
     return filtered
 
+def resolve_candidate_consumers(
+    *,
+    geo,
+    location: str,
+    weights: dict,
+    containing: bool = False,
+    exceptions: list = None,
+) -> list:
+    """
+    Resolve candidate consumer locations from a base location.
+
+    Parameters:
+    - geo: GeoResolver instance
+    - location: base location string (e.g., "GLO", "CH")
+    - weights: valid weight region codes
+    - containing: if True, return regions containing the location;
+                  if False, return regions contained by the location
+    - exceptions: list of regions to exclude (used with GLO fallback)
+
+    Returns:
+    - list of valid candidate location codes
+    """
+    try:
+        candidates = geo.resolve(
+            location=location,
+            containing=containing,
+            exceptions=exceptions or [],
+        )
+    except KeyError:
+        return []
+    return [loc for loc in candidates if loc in weights]
+
+
 
 def group_edges_by_signature(
     edge_list, required_supplier_fields, required_consumer_fields, geo, weights
