@@ -29,6 +29,7 @@ requirements:
     - constructive_geometries
     - prettytable
     - sparse
+    - highspy
 
 
 test:

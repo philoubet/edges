@@ -9,3 +9,4 @@ bw2analyzer
 constructive_geometries
 prettytable
 sparse
+highspy
