@@ -468,6 +468,7 @@ def normalize_signature_data(info_dict, required_fields):
 
     return filtered
 
+
 def resolve_candidate_consumers(
     *,
     geo,
@@ -499,7 +500,6 @@ def resolve_candidate_consumers(
     except KeyError:
         return []
     return [loc for loc in candidates if loc in weights]
-
 
 
 def group_edges_by_signature(
