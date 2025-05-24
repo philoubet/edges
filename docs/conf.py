@@ -13,6 +13,7 @@ exclude_patterns = []
 
 html_theme = "alabaster"
 html_static_path = ["_static"]
+html_logo = "https://github.com/Laboratory-for-Energy-Systems-Analysis/edges/blob/main/assets/permanent/edges_logo_tight_frame.png"
 
 import os
 import sys

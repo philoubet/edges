@@ -1482,10 +1482,12 @@ class EdgeLCIA:
         - Must be called before `lcia()` to populate the CF matrix.
         - Parameters are pulled from the method file or passed manually via `parameters`.
 
+
         Raises
         ------
         ValueError
             If the requested scenario is not found in the parameter dictionary.
+
 
         Updates
         -------
@@ -1590,16 +1592,19 @@ class EdgeLCIA:
         This method multiplies the inventory matrix with the CF matrix to produce a scalar score
         or a distribution of scores (for uncertainty propagation).
 
+
         Behavior
         --------
         - In deterministic mode: computes a single scalar LCIA score.
         - In uncertainty mode (3D matrix): computes a 1D array of LCIA scores across all iterations.
+
 
         Notes
         -----
         - Must be called after `evaluate_cfs()`.
         - Requires the inventory to be computed via `lci()`.
         - Technosphere or biosphere matrix is chosen based on exchange type.
+
 
         Updates
         -------
