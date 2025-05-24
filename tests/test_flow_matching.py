@@ -145,7 +145,8 @@ def test_normalize_signature_data():
         data.copy(), required_fields={"location", "classifications"}
     )
     assert isinstance(normalized["classifications"], tuple)
-    assert ("cpc", ("123", "456")) in normalized["classifications"]
+    assert ("cpc", "123") in normalized["classifications"]
+    assert ("cpc", "456") in normalized["classifications"]
     assert ("isic", ("789",)) in normalized["classifications"]
 
 
