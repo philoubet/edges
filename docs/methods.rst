@@ -9,14 +9,21 @@ This section describes the built-in LCIA methods available in `edges`, including
 AWARE 2.0
 ---------
 
-**Name**: `AWARE 2.0_Country_all_yearly.json` (and variants)
+**Name**: `AWARE 2.0` (and variants)
 
 **Impact Category**:
 
 - ``("AWARE 2.0", "Country", "all", "yearly")``
-- ``("AWARE 2.0", "Country", "irri", "monthly")``
-- ``("AWARE 2.0", "Country", "non_irri", "monthly")``
-- ``("AWARE 2.0", "Country", "unspecified", "monthly")``
+- ``("AWARE 2.0", "Country", "irri", "yearly")``
+- ``("AWARE 2.0", "Country", "non_irri", "yearly")``
+- ``("AWARE 2.0", "Country", "unspecified", "yearly")``
+
+These four methods present different scopes:
+
+- ``all``: applies consumption type-specific CFs depending on the agricultural, non-agrilcultural and unspecified nature of the consumer. Uses CPC codes.
+- ``irri``: applies CFs considering that all consumers are agricultural activities. Uses CPC codes.
+- ``non_irri``: applies CF considering that all consumers are non-agricultural activities. Uses CPC codes.
+- ``unspecified``: applies CF to all consumers, without distinction based on consumption pattern. Does not use CPC codes.
 
 
 **Description**: AWARE estimates water deprivation potential by measuring the availability of water after human and ecosystem needs are met.
@@ -70,6 +77,9 @@ AWARE 2.0
         }
       }
     }
+
+Here `"classifications": {"CPC": ["01"]}` ensures that this CF only applies
+to agriclutural processes.
 
 **Reference**:
 Seitfudem, G., Berger, M., Schmied, H. M., & Boulay, A.-M. (2025).

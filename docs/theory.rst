@@ -21,6 +21,7 @@ Conventional LCIA applies CFs to nodes (flows), yielding:
    s = \mathbf{c}^T \cdot \mathbf{B} \cdot \mathbf{A}^{-1} \cdot \mathbf{f}
 
 Where:
+
 - :math:`\mathbf{f}` is the demand vector
 - :math:`\mathbf{A}` is the technosphere matrix
 - :math:`\mathbf{B}` is the biosphere matrix
@@ -43,6 +44,7 @@ Matching Logic
 --------------
 
 Characterization factors in `edges` are matched using:
+
 - **Supplier** attributes: `name`, `reference product`, `location`, `matrix`
 - **Consumer** attributes: `location`, `matrix`, `classifications`
 - **Contextual parameters**: e.g., scenario-dependent variables like CO₂ concentrations
@@ -112,6 +114,7 @@ to apply cost-based characterization factors to LCI exchanges, using the same
 regionalization and parametrization logic available for environmental LCIA.
 
 Cost data can be:
+
 - Fixed (e.g., per unit cost in a specific currency)
 - Parameterized (e.g., price = base_price * inflation_factor)
 - Scenario-dependent (e.g., modeled price paths from IAMs or forecasts)
@@ -131,15 +134,23 @@ This allows integrated techno-economic and environmental modeling under consiste
 
 .. code-block:: python
 
+    import bw2data
     from edges import CostLCIA
-    lcia = CostLCIA(method="LCC 1.0_2023.json", cost_key="USD_2020")
+
+    bw2data.project.set_current("some project")
+    act = bw2data.Database("some db").random()
+
+    lcia = CostLCIA(
+        method=("LCC 1.0", "2023"),
+        demand={act: 1}
+    )
+
     lcia.lci()
     lcia.map_exchanges()
     lcia.evaluate_cfs()
     lcia.lcia()
     df = lcia.generate_df_table()
     print(df.head())
-"""
 
 ---
 
@@ -147,6 +158,7 @@ Summary
 -------
 
 By resolving CFs at the level of exchanges, `edges`:
+
 - Enables context-aware LCIA without full GIS dependency
 - Supports regionalized, relational, and prospective modeling
 - Keeps logic transparent, reproducible, and extendable via JSON and symbolic expressions

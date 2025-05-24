@@ -59,6 +59,10 @@ You can install the library using pip:
 pip install git+https://github.com/Laboratory-for-Energy-Systems-Analysis/edges.git
 ```
 
+## Documentation
+
+* [Documentation](https://edges.readthedocs.io/en/latest/index.html)
+
 ## Getting Started
 
 Check out the [examples' notebook](https://github.com/romainsacchi/edges/blob/main/examples/examples.ipynb).
@@ -90,16 +94,21 @@ method = ('AWARE 1.2c', 'Country', 'unspecified', 'yearly')
 # Initialize the LCA object
 LCA = EdgeLCIA({act: 1}, method)
 LCA.lci()
+
 # Map CFs to exchanges
 LCA.map_exchanges()
+
 # If needed, extend the mapping to aggregated and `dynamic` regions (e.g., RoW)
 LCA.map_aggregate_locations()
 LCA.map_dynamic_locations()
 LCA.map_contained_locations()
+
 # add global CFs to exchanges missing a CF
 LCA.map_remaining_locations_to_global()
+
 # Evaluate CFs
 LCA.evaluate_cfs()
+
 # Perform the LCIA calculation
 LCA.lcia()
 print(LCA.score)
@@ -114,44 +123,50 @@ LCA.generate_cf_table()
 Consider the following LCIA data file (saved under `gwp_example.json`)`:
 
 ```json
-[
-  {
-    "supplier": {
-      "name": "Carbon dioxide",
-      "operator": "startswith",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
-    },
-    "value": "1.0"
-  },
-  {
-    "supplier": {
-      "name": "Methane, fossil",
-      "operator": "contains",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
-    },
-    "value": "28 * (1 + 0.001 * (co2ppm - 410))"
-  },
-  {
-    "supplier": {
-      "name": "Dinitrogen monoxide",
-      "operator": "equals",
-      "matrix": "biosphere"
-    },
-    "consumer": {
-      "matrix": "technosphere",
-      "type": "process"
-    },
-    "value": "265 * (1 + 0.0005 * (co2ppm - 410))"
-  }
-]
+{
+  "name": "Example LCIA Method",
+    "version": "1.0",
+    "description": "Example LCIA method for greenhouse gas emissions",
+    "unit": "kg CO2e",
+    "exchanges": [
+      {
+        "supplier": {
+          "name": "Carbon dioxide",
+          "operator": "startswith",
+          "matrix": "biosphere"
+        },
+        "consumer": {
+          "matrix": "technosphere",
+          "type": "process"
+        },
+        "value": "1.0"
+      },
+      {
+        "supplier": {
+          "name": "Methane, fossil",
+          "operator": "contains",
+          "matrix": "biosphere"
+        },
+        "consumer": {
+          "matrix": "technosphere",
+          "type": "process"
+        },
+        "value": "28 * (1 + 0.001 * (co2ppm - 410))"
+      },
+      {
+        "supplier": {
+          "name": "Dinitrogen monoxide",
+          "operator": "equals",
+          "matrix": "biosphere"
+        },
+        "consumer": {
+          "matrix": "technosphere",
+          "type": "process"
+        },
+        "value": "265 * (1 + 0.0005 * (co2ppm - 410))"
+      }
+  ]
+}
 
 ```
 
@@ -159,15 +174,21 @@ We can perform a parameter-based LCIA calculation as follows:
 
 ```python
 
+
 import bw2data
 from edges import EdgeLCIA
 
 # Select an activity from the LCA database
-bw2data.projects.set_current("ecoinvent-3.10-cutoff")
-act = bw2data.Database("ecoinvent-3.10-cutoff").random()
+bw2data.projects.set_current("ecoinvent-3.10.1-cutoff")
+act = bw2data.Database("ecoinvent-3.10.1-cutoff").random()
+print(act)
 
 # Define scenario parameters (e.g., atmospheric CO₂ concentration and time horizon)
-params = {"co2ppm": [410, 450, 500], "h": 100}
+params = {
+    "some scenario": {
+         "co2ppm": {"2020": 410, "2050": 450, "2100": 500}, "h": {"2020": 100, "2050": 100, "2100": 100}
+    }
+}
 
 # Define an LCIA method (symbolic CF expressions stored in JSON)
 method = ('GWP', 'scenario-dependent', '100 years')
@@ -175,7 +196,7 @@ method = ('GWP', 'scenario-dependent', '100 years')
 # Initialize LCIA
 lcia = EdgeLCIA(
    demand={act: 1},
-   filepath="gwp_example.json",
+   filepath="lcia_example_3.json",
    parameters=params
 )
 
@@ -192,66 +213,31 @@ lcia.map_remaining_locations_to_global()
 
 # Run scenarios efficiently
 results = []
-for idx in range(lcia.scenario_length):
+for idx in {"2020", "2050", "2100"}:
     lcia.evaluate_cfs(idx)
     lcia.lcia()
     df = lcia.generate_cf_table()
 
     scenario_result = {
         "scenario": idx,
-        "co2ppm": params["co2ppm"][idx],
+        "co2ppm": params["some scenario"]["co2ppm"][idx],
         "score": lcia.score,
         "CF_table": df
     }
     results.append(scenario_result)
 
-    print(f"Scenario {idx+1} (CO₂ {params['co2ppm'][idx]} ppm): Impact = {lcia.score}")
-    
+    print(f"Scenario (CO₂ {params['some scenario']['co2ppm'][idx]} ppm): Impact = {lcia.score}")
+
 ```
 
 
 ## Data Sources
 
-* **AWARE**: The AWARE factors are adapted from peer-reviewed sources and tailored to provide 
-precise country-specific data for environmental modeling. Refer to the AWARE 
-website [https://wulca-waterlca.org/](https://wulca-waterlca.org/) for more information.
-
-If you use the AWARE method, please cite the following publication:
-
-```bibtex
-@article{boulay2018aware,
-  title={The WULCA consensus characterization model for water scarcity footprints: assessing impacts of water consumption based on available water remaining (AWARE).},
-  author={Anne-Marie Boulay, Jane Bare, Lorenzo Benini, Markus Berger, Michael J. Lathuillière, Alessandro Manzardo, Manuele Margni, Masaharu Motoshita, Montserrat Núñez, Amandine Valerie Pastor, Bradley Ridoutt, Taikan Oki, Sebastien Worbe & Stephan Pfister },
-  journal={Int J Life Cycle Assess},
-  volume={23},
-  pages={368–378},
-  year={2018},
-  publisher={Springer}
-}
-```
+See [Methods](https://edges.readthedocs.io/en/latest/methods.html) from [Documentation](https://edges.readthedocs.io/en/latest/index.html).
 
 ## Methodology
 
-1. **Exchange Mapping**: Identifies the inventory exchanges matching the CF criteria. Matching can be based on any exchange fields (e.g., name, unit, location, classification, etc.).
-
-2. **Scenario Evaluation**: CF values can be defined numerically or symbolically and may depend on parameters (e.g., co2ppm, time horizons). 
-
-3. **Characterization Matrix**: CFs are applied directly to inventory exchanges in the characterization matrix of Brightway, enabling precise context-based LCIA.
-
-Additionally, for regionalized characterization factors, helping functions are available:
-
-* `.map_aggregate_location()`: For specific ``ecoinvent`` regions (e.g., RER, Canada without Quebec, etc.) that do ont have regionalized CFs, 
-``edges`` computes the weighted average of the characterization factors for the 
-countries included in the region, based either on population or GDP. The weighting 
-key can be selected by the user (weighting by population size by default), or it can be provided within the LCIA method file. 
-
-* `.map_dynamic_locations()`: For relative regions (e.g., RoW, RoE, etc.), ``edges`` dynamically defines the 
-locations included in the region based on the mathing activities in the LCA database. The weighted average of the characterization factor of the geographies containd in the region is then computed accordingly.
-
-* `.map_disaggregate_locations()`: For locations that do not have regionalized CFs, but are part of larger regions that have a regionalized CF, ``edges`` will attribute such CF to the exchange.
-
-* `.map_remaining_locations_to_global()`: For exchanges that do not have a regionalized CF, ``edges`` will attribute the global CF to the exchange. The global CF is defined as the weighted-average of the regionalized CFs, based on the weighting key selected.
-
+See [Therory](https://edges.readthedocs.io/en/latest/theory.html) from [Documentation](https://edges.readthedocs.io/en/latest/index.html).
 
 ## Contributing
 Contributions are welcome! Please follow these steps to contribute:
@@ -276,8 +262,9 @@ at [romain.sacchi@psi.ch](mailto:romain.sacchi@psi.ch).
 - [Alvaro Hahn Menacho](https://github.com/alvarojhahn)
 
 ## Acknowledgments
-The development of this library was entirely supported by the French agency for 
+The development of this library was supported by the French agency for 
 Energy [ADEME](https://www.ademe.fr/), via the financing of the [HySPI](https://www.isige.minesparis.psl.eu/actualite/le-projet-hyspi/) project.
 The HySPI project aims to provide a methodological framework to analyze and 
 quantify, in a systemic and prospective manner, the environmental impacts of the 
 decarbonization strategy of hydrogen production used by the industry in France.
+We also acknowledge financial support from the Europe Horizon project [RAWCLIC](https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/projects-details/43108390/101183654/HORIZON?keywords=RAWCLIC&isExactMatch=true&order=DESC&pageNumber=NaN&sortBy=title).
